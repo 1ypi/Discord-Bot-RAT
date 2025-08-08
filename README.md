@@ -62,11 +62,11 @@ Go to the Discord Developer Portal https://discord.com/developers/applications
 
 Click "New Application" → Name it (e.g., "oney") → Click "Create"
 
-2. Convert to a Bot Account
+2. Give Administrator
 Navigate to the "Bot" tab in left sidebar
 
 
-Click "Add Bot" → "Yes, do it!"
+Click Administrator down below
 
 3. Configure Bot Permissions
 Under "Privileged Gateway Intents", enable:
@@ -79,7 +79,6 @@ Under "Privileged Gateway Intents", enable:
 
 
 Copy your Bot Token (click "Reset Token" if blank)
-🔐 Keep this secret - it's your bot's password!
 
 4. Invite Bot to Your Server
 Go to "OAuth2" → "URL Generator"
