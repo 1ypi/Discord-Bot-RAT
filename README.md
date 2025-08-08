@@ -58,17 +58,22 @@ File extension can be modified to:
 ## 🛠 Discord Bot Setup Guide
 1. Create a Discord Application
 
+
 Go to the Discord Developer Portal https://discord.com/developers/applications
 
 Click "New Application" → Name it (e.g., "oney") → Click "Create"
 
 2. Give Administrator
+
+
 Navigate to the "Bot" tab in left sidebar
 
 
 Click Administrator down below
 
 3. Configure Bot Permissions
+
+
 Under "Privileged Gateway Intents", enable:
 
 ✅ Presence Intent
@@ -81,6 +86,8 @@ Under "Privileged Gateway Intents", enable:
 Copy your Bot Token (click "Reset Token" if blank)
 
 4. Invite Bot to Your Server
+
+
 Go to "OAuth2" → "URL Generator"
 
 Select these scopes:
