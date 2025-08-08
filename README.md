@@ -57,7 +57,8 @@ File extension can be modified to:
 
 ## 🛠 Discord Bot Setup Guide
 1. Create a Discord Application
-Go to the Discord Developer Portal
+
+Go to the Discord Developer Portal https://discord.com/developers/applications
 
 Click "New Application" → Name it (e.g., "oney") → Click "Create"
 
