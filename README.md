@@ -8,7 +8,7 @@
 A remote Discord-based administration system.
 
 
-![Preview](https://i.imgur.com/2LaYVRp.png)
+![preview](ignore/preview.png)
 
 
 ## 🌟 Feature Highlights
