@@ -55,6 +55,47 @@ File extension can be modified to:
 
 .exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
 
+## 🛠 Discord Bot Setup Guide
+1. Create a Discord Application
+Go to the Discord Developer Portal
+
+Click "New Application" → Name it (e.g., "oney") → Click "Create"
+
+2. Convert to a Bot Account
+Navigate to the "Bot" tab in left sidebar
+
+
+Click "Add Bot" → "Yes, do it!"
+
+3. Configure Bot Permissions
+Under "Privileged Gateway Intents", enable:
+
+✅ Presence Intent
+
+✅ Server Members Intent
+
+✅ Message Content Intent
+
+
+Copy your Bot Token (click "Reset Token" if blank)
+🔐 Keep this secret - it's your bot's password!
+
+4. Invite Bot to Your Server
+Go to "OAuth2" → "URL Generator"
+
+Select these scopes:
+
+bot
+
+applications.commands
+
+Set these permissions (checkboxes):
+
+Administrator (for testing)
+or manually select:
+View Channels, Send Messages, Embed Links, Attach Files, Read Message History
+
+Copy the generated URL and visit it in your browser
 
 ## Configuration
 Edit python file:
