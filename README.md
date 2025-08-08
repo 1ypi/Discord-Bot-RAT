@@ -42,19 +42,19 @@ and more! (check below)
 ## 🚀 Deployment
 
 Requirements
-
+```
 pip install -r requirements.txt
 
 python oney.pyw
-
+```
 File extension can be modified to:
-
+```
 .py for console logs. (you need the requirements installed on the victims pc.)
 
 .pyw discrete. (you need the requirements installed on the victims pc.)
 
 .exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
-
+```
 ## 🛠 Discord Bot Setup Guide
 1. Create a Discord Application
 
@@ -75,14 +75,14 @@ Click Administrator down below
 
 
 Under "Privileged Gateway Intents", enable:
-
+```
 ✅ Presence Intent
 
 ✅ Server Members Intent
 
 ✅ Message Content Intent
 
-
+```
 Copy your Bot Token (click "Reset Token" if blank)
 
 4. Invite Bot to Your Server
@@ -91,25 +91,23 @@ Copy your Bot Token (click "Reset Token" if blank)
 Go to "OAuth2" → "URL Generator"
 
 Select these scopes:
-
+```
 bot
 
 applications.commands
-
+```
 Set these permissions (checkboxes):
 
-Administrator (for testing)
-or manually select:
-View Channels, Send Messages, Embed Links, Attach Files, Read Message History
+Administrator
 
 Copy the generated URL and visit it in your browser
 
 ## Configuration
 Edit python file:
 
-
+```
   "token": "token"
-  
+  ```
    Replace token with your discord bot token. get it from https://discord.com/developers/applications
 
 ## Production (Recommended)
@@ -125,22 +123,22 @@ This will generate a .exe file in the dist folder ready to be opened by the vict
 Warning
 
 This tool is only for:
-
+```
 Authorized pentesting
 
 Educational research
 
 System administration
-
+```
 Document all consent before use.
 Violations may incur penalties under:
-
+```
 CFAA (18 U.S. Code § 1030)
 
 GDPR Article 5
 
 Local computer crime laws
-
+```
 📜 Full Command Reference
 
     commands_list = [
