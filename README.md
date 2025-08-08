@@ -6,7 +6,7 @@
 [![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 A remote Discord-based administration system.
-
+https://imgur.com/a/2LaYVRp
 
 
 ## 🌟 Feature Highlights
