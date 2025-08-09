@@ -48,6 +48,19 @@ pip install -r requirements.txt
 
 python oney.py
 ```
+Or if you want to send it to another person (victim) as an .exe file do this:
+
+```
+pip install pyinstaller
+
+pip install -r requirements.txt
+
+pyinstaller --onefile --windowed oney.py
+
+# you can add --icon=icon.ico before oney.py for a custom icon (icon has to be in the same folder and has to be named "icon" with the extension ".ico").
+```
+This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
+
 File extension can be modified to:
 ```
 .py for console logs. (you need the requirements installed on the victims pc.)
@@ -147,19 +160,6 @@ Edit python file:
   "token": "token"
   ```
    Replace token with your discord bot token. get it from https://discord.com/developers/applications
-
-## Production (Recommended)
-```
-pip install pyinstaller
-
-pip install -r requirements.txt
-
-pyinstaller --onefile --windowed oney.py
-
-# you can add --icon=icon.ico before oney.py for a custom icon (icon has to be in the same folder and has to be named "icon" with the extension ".ico").
-```
-This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
-
 
 # ⚖️ Legal Compliance
 
