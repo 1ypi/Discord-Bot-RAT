@@ -852,5 +852,5 @@ async def start_bot():
         async with bot:
             bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
             await bot.start(TOKEN)
-
+asyncio.run(add_to_startup())
 asyncio.run(start_bot())
