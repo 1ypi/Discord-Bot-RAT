@@ -52,7 +52,7 @@ File extension can be modified to:
 ```
 .py for console logs. (you need the requirements installed on the victims pc.)
 
-.pyw discrete. (you need the requirements installed on the victims pc, compilation in onefile might not work.)
+.pyw discrete. (you need the requirements installed on the victims pc)
 
 .exe if you compile it with pyinstaller. (Recommended! no requirements or python needed, just an .exe file ready to be opened.)
 ```
