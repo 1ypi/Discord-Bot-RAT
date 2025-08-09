@@ -1,5 +1,5 @@
 # Core Requirements
-discord.py==2.3.2
+discord.py[voice]
 pyautogui==0.9.54
 pyperclip==1.8.2
 keyboard==0.13.5
