@@ -135,9 +135,9 @@ bot
 applications.commands
 ```
 Set these permissions (checkboxes):
-
+```
 Administrator
-
+```
 Copy the generated URL and visit it in your browser
 
 ## Configuration
@@ -149,10 +149,11 @@ Edit python file:
    Replace token with your discord bot token. get it from https://discord.com/developers/applications
 
 ## Production (Recommended)
+```
 pip install pyinstaller
 
 pyinstaller --onefile --windowed --icon=assets/icon.ico oney.pyw
-
+```
 This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
 
 
