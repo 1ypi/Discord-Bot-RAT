@@ -152,9 +152,11 @@ Edit python file:
 ```
 pip install pyinstaller
 
+pip install -r requirements.txt
+
 pyinstaller --onefile --windowed oney.py
 
-# you can add --icon=assets/icon.ico before oney.py for a custom icon.
+# you can add --icon=icon.ico before oney.py for a custom icon (icon has to be in the same folder and has to be named "icon" with the extension ".ico").
 ```
 This will generate a .exe file in the dist folder ready to be opened by the victim, no requirements or python needed to open it.
 
