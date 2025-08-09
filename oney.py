@@ -847,10 +847,14 @@ def add_to_startup():
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
 
+
+add_to_startup()
+
 async def start_bot():
     async with aiohttp.ClientSession() as session:
         async with bot:
             bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
             await bot.start(TOKEN)
-asyncio.run(add_to_startup())
+
+
 asyncio.run(start_bot())
