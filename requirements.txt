@@ -12,3 +12,4 @@ wmi==1.5.1
 pycryptodome==3.20.0  # For encryption
 requests==2.31.0  # For web requests
 pillow  # For screenshot handling
+certifi
