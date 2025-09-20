@@ -42,6 +42,10 @@ and more! (check below)
 ```
 ## 🚀 Deployment
 
+You can just open the builder.bat to create your .exe file ready to be sent.
+
+or you can do it manually by doing this:
+
 Requirements
 ```
 pip install -r requirements.txt
