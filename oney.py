@@ -29,7 +29,6 @@ active_channels = set()
 stop_event = Event()
 last_sent_time = time.time()
 current_dir = os.getcwd()
-TOKEN = ""  # Replace with your bot token, get it from https://discord.com/developers/applications
 
 intents = discord.Intents.default()
 intents.message_content = True
