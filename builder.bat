@@ -53,7 +53,7 @@ echo.
 copy /b temp_token.py + oney.py bot_with_token.py >nul
 
 echo Installing required packages...
-pip install discord.py pyautogui pyperclip keyboard certifi aiohttp
+pip install -r requirements.txt
 
 echo Building executable with PyInstaller...
 pip install pyinstaller
@@ -78,4 +78,5 @@ echo ✅ Executable created: dist\%EXE_NAME%.exe
 echo.
 echo You can now run %EXE_NAME%.exe
 echo.
+
 pause
