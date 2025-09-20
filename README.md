@@ -158,10 +158,10 @@ Administrator
 Copy the generated URL and visit it in your browser
 
 ## Configuration
-Edit python file:
+If you want to edit python file manually without using the builder.bat:
 
 ```
-  "token": "token"
+  TOKEN = "token"
   ```
    Replace token with your discord bot token. get it from https://discord.com/developers/applications
 
