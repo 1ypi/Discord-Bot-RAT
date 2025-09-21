@@ -1,13 +1,7 @@
 @echo off
 chcp 65001 >nul
 setlocal enabledelayedexpansion
-:cleanup
 
-if exist temp_token.py del temp_token.py 2>nul
-if exist bot_with_token.py del bot_with_token.py 2>nul
-if exist obfuscated_oney.py del obfuscated_oney.py 2>nul
-if exist sqlite_path.tmp del sqlite_path.tmp 2>nul
-if exist temp_builder.py del temp_builder.py 2>nul
 title Builder
 
 where python >nul 2>&1
@@ -83,8 +77,7 @@ python temp_builder.py "!TOKEN!"
 
 if errorlevel 1 (
     echo Failed to create combined bot file.
-    if exist temp_token.py del temp_token.py
-    if exist temp_builder.py del temp_builder.py
+    call :cleanup
     pause
     exit /b 1
 )
@@ -99,7 +92,9 @@ if /i "!USE_OBF!"=="y" (
         python obf.py
         if errorlevel 1 (
             echo Obfuscation failed.
-            goto cleanup
+            call :cleanup
+            pause
+            exit /b 1
         )
         if exist obfuscated_oney.py (
             set "AS_SOURCE=obfuscated_oney"
@@ -117,7 +112,9 @@ if not exist ".venv\Scripts\activate.bat" (
     python -m venv .venv
     if errorlevel 1 (
         echo Failed to create virtualenv.
-        goto cleanup
+        call :cleanup
+        pause
+        exit /b 1
     )
 )
 
@@ -167,7 +164,9 @@ echo.
 !PYINST_CMD!
 if errorlevel 1 (
     echo PyInstaller build failed.
-    goto cleanup
+    call :cleanup
+    pause
+    exit /b 1
 )
 
 echo.
@@ -185,15 +184,16 @@ if exist "dist\!EXE_NAME!.exe" (
     echo Warning: Executable not found at expected location.
 )
 
-:cleanup
+call :cleanup
+call deactivate 2>nul
+pause
+endlocal
+exit /b 0
 
+:cleanup
 if exist temp_token.py del temp_token.py 2>nul
 if exist bot_with_token.py del bot_with_token.py 2>nul
 if exist obfuscated_oney.py del obfuscated_oney.py 2>nul
 if exist sqlite_path.tmp del sqlite_path.tmp 2>nul
 if exist temp_builder.py del temp_builder.py 2>nul
-
-call deactivate 2>nul
-
-pause
-endlocal
+exit /b 0
