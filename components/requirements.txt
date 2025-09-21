@@ -26,3 +26,6 @@ keyboard
 urllib3
 requests
 cryptography
+urllib.request
+zipfile
+platform
