@@ -411,7 +411,7 @@ async def recent(ctx, browser: str = "chrome"):
                     )
 
                     for url, title, visit_time in cursor.fetchall():
-                        timestamp = datetime(1970, 1, 1) + datetime.timedelta(
+                        timestamp = datetime(1970, 1, 1) + timedelta(
                             microseconds=visit_time
                         )
                         history.append(
