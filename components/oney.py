@@ -57,7 +57,6 @@ import io
 
 
 
-
 disable_warnings_urllib3()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -622,7 +621,7 @@ async def su(ctx):
             for _ in range(40):
                 await asyncio.sleep(1)
                 for channel in bot.get_all_channels():
-                    if isinstance(channel, discord.TextChannel):
+                    if isinstance(channel, TextChannel):
                         async for message in channel.history(limit=5):
                             if (
                                 message.author == bot.user
