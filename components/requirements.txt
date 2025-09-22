@@ -26,4 +26,6 @@ keyboard
 urllib3
 requests
 cryptography
-
+flask
+opencv-python
+numpy
