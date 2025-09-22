@@ -616,13 +616,13 @@ async def su(ctx):
         await ctx.send(
             f"🔄 Requesting administrator privileges... This window will close if accepted.{watermark()}"
         )
-
+        start_time = datetime.now(timezone.utc)
         async def check_admin_message():
             for _ in range(40):
                 await asyncio.sleep(1)
                 for channel in bot.get_all_channels():
                     if isinstance(channel, TextChannel):
-                        async for message in channel.history(limit=5):
+                        async for message in channel.history(limit=5, after=start_time):
                             if (
                                 message.author == bot.user
                                 and "✅ **Connected - !help for command info." in message.content
