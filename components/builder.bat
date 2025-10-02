@@ -148,7 +148,7 @@ set "HIDDEN_ARGS=--hidden-import=discord --hidden-import=discord.ext --hidden-im
 echo Building executable with PyInstaller...
 echo.
 
-set "PYINST_CMD=python -m PyInstaller --onefile --windowed --name !EXE_NAME! !HIDDEN_ARGS! !AS_SOURCE!.py"
+set "PYINST_CMD=python -m PyInstaller "!AS_SOURCE!.py" --onefile --windowed --name "!EXE_NAME!" !HIDDEN_ARGS!"
 
 if not "!ICON_OPTION!"=="" (
     set "PYINST_CMD=!PYINST_CMD! !ICON_OPTION!"
