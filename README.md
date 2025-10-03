@@ -93,6 +93,8 @@ File extension can be modified to:
 
 !bsod - Trigger BSOD (WARNING)
 
+!open - Searches and opens a start menu program
+
 
 **File Operations:**
 
@@ -148,6 +150,7 @@ File extension can be modified to:
 
 !key <your_ngrok_auth_token> - Set your ngrok auth token (get from ngrok.com, easy and free)
 
+!webcam - Sends a picture from the webcam
 
 
 ## 🛠 Discord Bot Setup Guide
