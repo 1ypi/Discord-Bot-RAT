@@ -522,7 +522,7 @@ def get_shortcut_target(lnk_path):
 async def open_program(ctx, program_name: str, *args):
     shortcuts = search_shortcut(program_name)
     if not shortcuts:
-        await ctx.send(f"No se encontró el programa **{program_name}**.")
+        await ctx.send(f"⚠️ No se encontró el programa **{program_name}**.\n {watermark()}")
         return
     selected_shortcut = shortcuts[0]
     target_path = get_shortcut_target(selected_shortcut)
@@ -535,9 +535,9 @@ async def open_program(ctx, program_name: str, *args):
             subprocess.Popen([program_path] + list(args))
         else:
             os.startfile(program_path)
-        await ctx.send(f"Programa **{selected_shortcut.stem}** lanzado.")
+        await ctx.send(f"🟢 Programa **{selected_shortcut.stem}** lanzado.\n {watermark()}")
     except Exception as e:
-        await ctx.send(f"Error al abrir el programa: {e}")
+        await ctx.send(f"❌ Error al abrir el programa: {e}\n {watermark()}")
 
 @bot.command()
 async def status(ctx):
