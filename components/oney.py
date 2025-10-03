@@ -1130,6 +1130,7 @@ async def help(ctx):
 !shutdown - Shutdown computer
 !restart - Restart computer
 !bsod - Trigger BSOD (WARNING)
+!open - Searches and opens a start menu program
 
 **File Operations:**
 !ls - List files
